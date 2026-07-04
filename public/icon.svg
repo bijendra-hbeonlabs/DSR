@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="globeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+  <!-- Rounded container background -->
+  <rect width="128" height="128" rx="28" fill="#0f172a" />
+  
+  <g transform="translate(64, 64)">
+    <!-- Back part of the ring -->
+    <ellipse cx="0" cy="0" rx="46" ry="14" fill="none" stroke="#60a5fa" stroke-width="5.5" transform="rotate(-15)" opacity="0.6"/>
+    <!-- Globe sphere -->
+    <circle cx="0" cy="0" r="31" fill="url(#globeGrad)" />
+    <!-- Stylized green continents -->
+    <path d="M -22 -8 C -15 -20, 0 -16, 4 -24 C 10 -20, 16 -8, 22 -12 C 24 0, 14 8, 20 18 C 8 24, -4 20, -10 12 Z" fill="#22c55e" opacity="0.7" />
+    <!-- Front part of the ring wrapping around -->
+    <path d="M -44 11 C -30 20, 30 12, 44 -10" fill="none" stroke="#0e60a9" stroke-width="7" transform="rotate(-15)" />
+  </g>
+</svg>
