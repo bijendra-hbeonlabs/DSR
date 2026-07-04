@@ -16,7 +16,42 @@ router.get('/', async (req, res) => {
     const parsedPage = Math.max(1, parseInt(page) || 1);
     const offset = (parsedPage - 1) * parsedLimit;
 
-    if (employeeId) where.employeeId = employeeId;
+    // Role-based filtering
+    const userId = req.user.id;
+    const roleName = req.user.roleName;
+
+    if (roleName === 'EMPLOYEE') {
+      const employee = await Employee.findOne({ where: { userId } });
+      if (!employee) {
+        return res.status(404).json({ error: 'Employee profile not found' });
+      }
+      where.employeeId = employee.id;
+    } else if (roleName === 'MANAGER') {
+      const employee = await Employee.findOne({ where: { userId } });
+      if (employee) {
+        const teamEmployees = await Employee.findAll({
+          where: {
+            [Op.or]: [
+              { id: employee.id },
+              { managerId: userId }
+            ]
+          },
+          attributes: ['id']
+        });
+        const employeeIds = teamEmployees.map(e => e.id);
+        if (employeeId && employeeIds.includes(parseInt(employeeId))) {
+          where.employeeId = employeeId;
+        } else {
+          where.employeeId = { [Op.in]: employeeIds };
+        }
+      } else {
+        where.employeeId = -1; // Force empty array if manager has no profile
+      }
+    } else {
+      // ADMIN or SUPER_ADMIN
+      if (employeeId) where.employeeId = employeeId;
+    }
+
     if (status) where.status = status;
 
     if (startDate && endDate) {
@@ -28,7 +63,7 @@ router.get('/', async (req, res) => {
     const { count, rows } = await DSR.findAndCountAll({
       where,
       include: [
-        { model: Employee, as: 'employee', attributes: ['id', 'firstName', 'lastName', 'email'] },
+        { model: Employee, as: 'employee', attributes: ['id', 'firstName', 'lastName', 'email', 'userId'] },
         { model: Project, as: 'project', attributes: ['id', 'name'] },
         { model: User, as: 'reviewer', attributes: ['id', 'username'] },
       ],
@@ -65,6 +100,17 @@ router.get('/:id', async (req, res) => {
 
     if (!dsr) {
       return res.status(404).json({ error: 'DSR not found' });
+    }
+
+    // Role-based access validation
+    if (req.user.roleName === 'EMPLOYEE' && dsr.employee.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied to this DSR record' });
+    }
+    if (req.user.roleName === 'MANAGER') {
+      const managerEmployee = await Employee.findOne({ where: { userId: req.user.id } });
+      if (!managerEmployee || (dsr.employee.userId !== req.user.id && dsr.employee.managerId !== req.user.id)) {
+        return res.status(403).json({ error: 'Access denied to this DSR record' });
+      }
     }
 
     res.json(dsr);

@@ -4,7 +4,8 @@ import { useAuth } from '@/lib/auth-context';
 import { useEffect, useState } from 'react';
 import { dsrAPI, projectsAPI } from '@/lib/api-client';
 import { DSR, DSRStatus, Project } from '@/lib/types';
-import { Plus, Edit2, Eye, CheckCircle, Clock, AlertCircle, X, FileText, Check, Ban, Send } from 'lucide-react';
+import { Plus, Edit2, Eye, CheckCircle, Clock, AlertCircle, X, FileText, Check, Ban, Send, BadgeAlert } from 'lucide-react';
+
 
 export default function DSRPage() {
   const { user, token } = useAuth();
