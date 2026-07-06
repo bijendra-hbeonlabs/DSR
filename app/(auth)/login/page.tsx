@@ -9,19 +9,24 @@ import { Eye, EyeOff, Lock, User, ShieldAlert, ArrowRight, Sparkles, X } from 'l
 
 const SLIDES = [
   {
-    image: '/slide-1.png',
-    title: 'Precision Automation',
-    tagline: 'Empowering enterprises with intelligent workflows and high-performance system monitoring.'
+    image: '/slide_pcb_manufacturing.png',
+    title: 'Advanced PCB Manufacturing',
+    tagline: 'Delivering multilayer high-speed SMT assembly and custom embedded hardware prototyping solutions.'
   },
   {
-    image: '/slide-2.png',
-    title: 'Cloud-Scale Infrastructure',
-    tagline: 'Experience real-time performance indicators and microsecond latency server health.'
+    image: '/slide_iot_automation.png',
+    title: 'IoT & Industrial Automation',
+    tagline: 'Fostering smart industrial workflows, remote telemetry data-logging, and sensor integrations.'
   },
   {
-    image: '/slide-3.png',
-    title: 'Collaborative Excellence',
-    tagline: 'Fostering seamless developer integration and automated EOD reporting logs.'
+    image: '/slide_smart_biometrics.png',
+    title: 'Biometric Access & Security',
+    tagline: 'Empowering offices with secure RFID readers, biometric scanning hardware, and touchless controls.'
+  },
+  {
+    image: '/slide_smart_cities.png',
+    title: 'Smart Infrastructure & Cities',
+    tagline: 'Building connected green street light grids, solar loggers, and smart irrigation networks.'
   }
 ];
 

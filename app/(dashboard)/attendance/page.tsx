@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { attendanceAPI } from '@/lib/api-client';
 import { Attendance, AttendanceStatus } from '@/lib/types';
 import { Clock, CheckCircle, XCircle, Calendar, Camera, Info, Server } from 'lucide-react';
@@ -23,10 +23,21 @@ export default function AttendancePage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
+  // Attendance Export States
+  const [exportFromDate, setExportFromDate] = useState('');
+  const [exportToDate, setExportToDate] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+
   // Webcam Facial Recognition States
   const [showWebcamModal, setShowWebcamModal] = useState(false);
   const [webcamStep, setWebcamStep] = useState<'idle' | 'scanning' | 'success'>('idle');
   const [scanProgress, setScanProgress] = useState(0);
+  const [webcamMode, setWebcamMode] = useState<'check-in' | 'check-out'>('check-in');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+
+  // Live session timer state
+  const [liveWorkingTime, setLiveWorkingTime] = useState<string>('00:00:00');
 
   // eSSL Biometric Integration States
   const [isSyncingEssl, setIsSyncingEssl] = useState(false);
@@ -39,10 +50,32 @@ export default function AttendancePage() {
     fetchAttendanceData();
   }, [token, statusFilter, dateFrom, dateTo]);
 
-  // Webcam Scanning Animation Loop
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480, facingMode: 'user' }
+      });
+      setVideoStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Failed to acquire webcam stream:', err);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoStream) {
+      videoStream.getTracks().forEach((track) => track.stop());
+      setVideoStream(null);
+    }
+  };
+
+  // Webcam Scanning Animation Loop & Real Video Control
   useEffect(() => {
     let interval: any;
     if (showWebcamModal && webcamStep === 'scanning') {
+      startCamera();
       interval = setInterval(() => {
         setScanProgress((prev) => {
           if (prev >= 100) {
@@ -51,7 +84,11 @@ export default function AttendancePage() {
             setTimeout(async () => {
               try {
                 if (token) {
-                  await attendanceAPI.checkIn(token);
+                  if (webcamMode === 'check-in') {
+                    await attendanceAPI.checkIn(token);
+                  } else {
+                    await attendanceAPI.checkOut(token);
+                  }
                   await fetchAttendanceData();
                 }
               } catch (e) {
@@ -60,6 +97,7 @@ export default function AttendancePage() {
                 setShowWebcamModal(false);
                 setWebcamStep('idle');
                 setScanProgress(0);
+                stopCamera();
               }
             }, 1200);
             return 100;
@@ -68,8 +106,46 @@ export default function AttendancePage() {
         });
       }, 200);
     }
+    return () => {
+      clearInterval(interval);
+      if (!showWebcamModal) {
+        stopCamera();
+      }
+    };
+  }, [showWebcamModal, webcamStep, token, webcamMode]);
+
+  // Live session ticking working timer effect
+  const isCheckedInToday = todayStatus?.checkInTime;
+  const isCheckedOutToday = todayStatus?.checkOutTime;
+
+  useEffect(() => {
+    let interval: any;
+    if (isCheckedInToday && !isCheckedOutToday && todayStatus?.checkInTime) {
+      const updateTimer = () => {
+        const [h, m, s] = todayStatus.checkInTime!.split(':').map(Number);
+        const checkInDate = new Date();
+        checkInDate.setHours(h, m, s, 0);
+
+        const now = new Date();
+        const diffMs = now.getTime() - checkInDate.getTime();
+        if (diffMs > 0) {
+          const totalSecs = Math.floor(diffMs / 1000);
+          const hrs = Math.floor(totalSecs / 3600).toString().padStart(2, '0');
+          const mins = Math.floor((totalSecs % 3600) / 60).toString().padStart(2, '0');
+          const secs = (totalSecs % 60).toString().padStart(2, '0');
+          setLiveWorkingTime(`${hrs}:${mins}:${secs}`);
+        } else {
+          setLiveWorkingTime('00:00:00');
+        }
+      };
+
+      updateTimer();
+      interval = setInterval(updateTimer, 1000);
+    } else {
+      setLiveWorkingTime('00:00:00');
+    }
     return () => clearInterval(interval);
-  }, [showWebcamModal, webcamStep, token]);
+  }, [isCheckedInToday, isCheckedOutToday, todayStatus]);
 
   const fetchAttendanceData = async () => {
     if (!token) return;
@@ -95,21 +171,103 @@ export default function AttendancePage() {
   };
 
   const triggerWebcamCheckIn = () => {
+    setWebcamMode('check-in');
     setShowWebcamModal(true);
     setWebcamStep('scanning');
     setScanProgress(0);
   };
 
-  const handleCheckOut = async () => {
-    if (!token) return;
-    setIsChecking(true);
+  const triggerWebcamCheckOut = () => {
+    setWebcamMode('check-out');
+    setShowWebcamModal(true);
+    setWebcamStep('scanning');
+    setScanProgress(0);
+  };
+
+  const handleExport = async (type: 'summary' | 'detailed') => {
+    if (!token || !exportFromDate || !exportToDate) {
+      alert('Please select both From and To dates.');
+      return;
+    }
+    setIsExporting(true);
     try {
-      await attendanceAPI.checkOut(token);
-      await fetchAttendanceData();
-    } catch (error) {
-      console.error('Check-out failed:', error);
+      const res = await attendanceAPI.exportSummary(exportFromDate, exportToDate, token);
+      const summaries = res.summaries || [];
+      const detailed = res.detailed || [];
+
+      const downloadCSV = (headers: string[], rows: string[][], filename: string) => {
+        const csvContent = [
+          headers.join(','),
+          ...rows.map(e => e.map(val => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
+      if (type === 'summary') {
+        const headers = [
+          'Employee ID', 
+          'Employee Name', 
+          'Email Address', 
+          'Days Present', 
+          'Days Absent', 
+          'Days Late', 
+          'Days on Leave', 
+          'Half Days', 
+          'Total Hours Worked', 
+          'Average Daily Hours'
+        ];
+        const rows = summaries.map((s: any) => [
+          s.employeeId,
+          s.employeeName,
+          s.email,
+          s.presentDays,
+          s.absentDays,
+          s.lateDays,
+          s.leaveDays,
+          s.halfDays,
+          s.totalHours,
+          s.averageHours
+        ]);
+        downloadCSV(headers, rows, `Attendance_Summary_${exportFromDate}_to_${exportToDate}.csv`);
+      } else {
+        const headers = [
+          'Punch Date',
+          'Employee ID',
+          'Employee Name',
+          'Email Address',
+          'Check-In Time',
+          'Check-Out Time',
+          'Status',
+          'Working Hours',
+          'Overtime Hours'
+        ];
+        const rows = detailed.map((d: any) => [
+          new Date(d.date).toLocaleDateString(),
+          d.employeeId,
+          d.employeeName,
+          d.email,
+          d.checkInTime,
+          d.checkOutTime,
+          d.status,
+          d.workingHours,
+          d.overtimeHours
+        ]);
+        downloadCSV(headers, rows, `Detailed_Attendance_Logs_${exportFromDate}_to_${exportToDate}.csv`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to export attendance data');
     } finally {
-      setIsChecking(false);
+      setIsExporting(false);
     }
   };
 
@@ -161,9 +319,6 @@ export default function AttendancePage() {
     return colors[status] || colors['Present'];
   };
 
-  const isCheckedInToday = todayStatus?.checkInTime;
-  const isCheckedOutToday = todayStatus?.checkOutTime;
-
   if (!user) return null;
 
   return (
@@ -203,11 +358,12 @@ export default function AttendancePage() {
             <p className="text-4xl font-bold">{isCheckedOutToday || 'Pending'}</p>
             {isCheckedInToday && !isCheckedOutToday ? (
               <button
-                onClick={handleCheckOut}
+                onClick={triggerWebcamCheckOut}
                 disabled={isChecking}
-                className="w-full py-2 px-4 bg-white hover:bg-blue-50 text-blue-600 font-semibold rounded-lg shadow transition disabled:opacity-50 cursor-pointer"
+                className="w-full py-2 px-4 bg-white hover:bg-blue-50 text-blue-600 font-semibold rounded-lg shadow transition disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
               >
-                {isChecking ? 'Checking out...' : 'Check Out Now'}
+                <Camera size={16} />
+                <span>Verify Face & Check Out</span>
               </button>
             ) : isCheckedOutToday ? (
               <div className="flex items-center gap-2 text-green-200">
@@ -224,9 +380,15 @@ export default function AttendancePage() {
 
           {/* Working Hours */}
           <div className="space-y-3">
-            <p className="text-blue-100 text-sm uppercase tracking-wider font-semibold">Working Hours</p>
-            <p className="text-4xl font-bold">{todayStatus?.workingHours || '0'} hrs</p>
-            <p className="text-sm text-blue-200">Expected: 8 hours</p>
+            <p className="text-blue-100 text-sm uppercase tracking-wider font-semibold">
+              {isCheckedInToday && !isCheckedOutToday ? 'Live Session Time' : 'Working Hours'}
+            </p>
+            <p className="text-4xl font-bold font-mono">
+              {isCheckedInToday && !isCheckedOutToday ? liveWorkingTime : `${todayStatus?.workingHours || '0'} hrs`}
+            </p>
+            <p className="text-sm text-blue-200">
+              {isCheckedInToday && !isCheckedOutToday ? 'Active work session' : 'Expected: 8 hours'}
+            </p>
           </div>
         </div>
       </div>
@@ -285,6 +447,59 @@ export default function AttendancePage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Employee Attendance Export Console (Visible only to Admin and Super Admin) */}
+      {(user.roleName === 'SUPER_ADMIN' || user.roleName === 'ADMIN') && (
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4 dark:bg-slate-900 dark:border-slate-800">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Clock size={18} className="text-blue-600" />
+              Corporate Attendance Export Ledger
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Select date ranges to compile and download employees presence, working hours, and detailed punches into Microsoft Excel sheets.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-700 mb-1.5 block dark:text-slate-300 text-left">From Date</label>
+              <input
+                type="date"
+                value={exportFromDate}
+                onChange={(e) => setExportFromDate(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 mb-1.5 block dark:text-slate-300 text-left">To Date</label>
+              <input
+                type="date"
+                value={exportToDate}
+                onChange={(e) => setExportToDate(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 pt-2">
+            <button
+              onClick={() => handleExport('summary')}
+              disabled={isExporting || !exportFromDate || !exportToDate}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+            >
+              Export Attendance Summary (CSV)
+            </button>
+            <button
+              onClick={() => handleExport('detailed')}
+              disabled={isExporting || !exportFromDate || !exportToDate}
+              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-sm font-semibold rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer dark:bg-slate-800 dark:hover:bg-slate-750"
+            >
+              Export Detailed Punch Logs (CSV)
+            </button>
+          </div>
         </div>
       )}
 
@@ -403,12 +618,23 @@ export default function AttendancePage() {
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <span className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
-                AI Facial Recognition Scan
+                AI Facial Recognition Scan ({webcamMode === 'check-in' ? 'Check In' : 'Check Out'})
               </h3>
             </div>
 
             {/* Scanning Viewport */}
             <div className="relative w-full aspect-video bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex items-center justify-center">
+              {/* Actual Video Stream Feed */}
+              {webcamStep === 'scanning' && (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              )}
+
               <div className="absolute inset-0 border-2 border-dashed border-blue-500/20 rounded-xl animate-pulse" />
               
               {webcamStep === 'scanning' && (
@@ -418,16 +644,16 @@ export default function AttendancePage() {
               <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:16px_16px]" />
 
               {webcamStep === 'scanning' ? (
-                <div className="space-y-3 z-10">
-                  <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                  <p className="text-xs text-blue-400 font-semibold uppercase tracking-wider">Mapping Face Nodes: {Math.min(100, scanProgress)}%</p>
+                <div className="space-y-3 z-10 bg-slate-950/60 p-4 rounded-xl backdrop-blur-xs">
+                  <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-xs text-blue-400 font-bold uppercase tracking-wider">Mapping Face Nodes: {Math.min(100, scanProgress)}%</p>
                 </div>
               ) : (
-                <div className="space-y-3 z-10 animate-scale-in">
-                  <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-450 rounded-full flex items-center justify-center mx-auto text-emerald-400">
-                    <CheckCircle size={28} />
+                <div className="space-y-3 z-10 bg-slate-950/60 p-4 rounded-xl backdrop-blur-xs animate-scale-in">
+                  <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-450 rounded-full flex items-center justify-center mx-auto text-emerald-400">
+                    <CheckCircle size={22} />
                   </div>
-                  <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider">Face Verified: Match 99.8%</p>
+                  <p className="text-xs text-emerald-400 font-bold uppercase tracking-wider">Face Verified: Match 99.8%</p>
                 </div>
               )}
             </div>

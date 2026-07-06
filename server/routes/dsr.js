@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 
     // Role-based filtering
     const userId = req.user.id;
-    const roleName = req.user.roleName;
+    const roleName = req.user.role?.name;
 
     if (roleName === 'EMPLOYEE') {
       const employee = await Employee.findOne({ where: { userId } });
@@ -103,10 +103,10 @@ router.get('/:id', async (req, res) => {
     }
 
     // Role-based access validation
-    if (req.user.roleName === 'EMPLOYEE' && dsr.employee.userId !== req.user.id) {
+    if (req.user.role?.name === 'EMPLOYEE' && dsr.employee.userId !== req.user.id) {
       return res.status(403).json({ error: 'Access denied to this DSR record' });
     }
-    if (req.user.roleName === 'MANAGER') {
+    if (req.user.role?.name === 'MANAGER') {
       const managerEmployee = await Employee.findOne({ where: { userId: req.user.id } });
       if (!managerEmployee || (dsr.employee.userId !== req.user.id && dsr.employee.managerId !== req.user.id)) {
         return res.status(403).json({ error: 'Access denied to this DSR record' });
@@ -129,7 +129,7 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
-    const { date, projectId, taskIds, workDescription, issues, tomorrowsPlan, completionPercentage, priority } = req.body;
+    const { date, projectId, taskIds, workDescription, issues, tomorrowsPlan, completionPercentage, priority, status } = req.body;
 
     const dsr = await DSR.create({
       employeeId: employee.id,
@@ -141,8 +141,14 @@ router.post('/', async (req, res) => {
       tomorrowsPlan,
       completionPercentage: completionPercentage || 0,
       priority: priority || 'Medium',
-      status: 'Draft',
+      status: status || 'Draft',
+      submittedAt: status === 'Submitted' ? new Date() : null,
     });
+
+    if (status === 'Submitted') {
+      const { sendDsrSubmissionEmail } = require('../utils/emailService');
+      sendDsrSubmissionEmail(dsr.id).catch(err => console.error('Failed to send dsr email async:', err));
+    }
 
     res.status(201).json(dsr);
   } catch (error) {
@@ -159,7 +165,14 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'DSR not found' });
     }
 
+    const oldStatus = dsr.status;
     await dsr.update(req.body);
+
+    if (req.body.status === 'Submitted' && oldStatus !== 'Submitted') {
+      const { sendDsrSubmissionEmail } = require('../utils/emailService');
+      sendDsrSubmissionEmail(dsr.id).catch(err => console.error('Failed to send dsr email async:', err));
+    }
+
     res.json(dsr);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update DSR', details: error.message });
@@ -179,6 +192,9 @@ router.post('/:id/submit', async (req, res) => {
       status: 'Submitted',
       submittedAt: new Date(),
     });
+
+    const { sendDsrSubmissionEmail } = require('../utils/emailService');
+    sendDsrSubmissionEmail(dsr.id).catch(err => console.error('Failed to send dsr email async:', err));
 
     res.json(dsr);
   } catch (error) {

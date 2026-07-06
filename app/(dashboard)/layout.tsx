@@ -37,7 +37,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex flex-col lg:flex-row h-screen bg-background">
       {/* Sidebar */}
       <Sidebar />
 

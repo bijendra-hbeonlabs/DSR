@@ -73,6 +73,11 @@ export default function Sidebar() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sidebar_collapsed');
       setIsCollapsed(saved === 'true');
+      
+      // Auto-collapse sidebar on mobile screen initialization
+      if (window.innerWidth < 1024) {
+        setIsOpen(false);
+      }
     }
   }, []);
 
@@ -91,26 +96,30 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile Toggle */}
-      <div className="hidden max-w-sm:flex items-center justify-between p-4 bg-card border-b border-border">
+      {/* Mobile Toggle Bar */}
+      <div className="flex lg:hidden items-center justify-between p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2">
           <img src="/logo-horizontal.svg" alt="HBEONLABS Logo" className="h-8 w-auto object-contain block dark:brightness-110" />
         </div>
-        <button onClick={() => setIsOpen(!isOpen)} className="lg:hidden">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="lg:hidden text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg transition cursor-pointer"
+          title="Toggle Navigation Menu"
+        >
           {isOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar Container */}
       <aside
-        className={`bg-card border-r border-border flex flex-col transition-all duration-300 ${
+        className={`bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 ${
           isCollapsed ? 'w-20' : 'w-64'
         } ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } fixed lg:static inset-y-0 left-0 z-40 lg:z-0`}
       >
         {/* Logo Section with Collapse Button */}
-        <div className="px-4 border-b border-border hidden lg:flex items-center justify-between h-20">
+        <div className="px-4 border-b border-slate-200 dark:border-slate-800 hidden lg:flex items-center justify-between h-20">
           {!isCollapsed ? (
             <img src="/logo-horizontal.svg" alt="HBEONLABS Logo" className="h-12 w-auto object-contain block dark:brightness-110" />
           ) : (
@@ -120,7 +129,7 @@ export default function Sidebar() {
           )}
           <button
             onClick={toggleCollapse}
-            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-950 transition cursor-pointer"
+            className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-100 transition cursor-pointer"
             title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
             {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}

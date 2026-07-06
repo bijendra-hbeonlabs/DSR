@@ -1,5 +1,5 @@
 const express = require('express');
-const { User, Role, Employee, Department } = require('../models');
+const { User, Role, Employee, Department, Designation } = require('../models');
 const { authMiddleware, roleCheck } = require('../middleware/auth');
 const { hashPassword } = require('../utils/passwordUtils');
 
@@ -37,7 +37,14 @@ router.get('/:id', async (req, res) => {
     const user = await User.findByPk(id, {
       include: [
         { model: Role, as: 'role', attributes: ['id', 'name'] },
-        { model: Employee, as: 'employee' },
+        {
+          model: Employee,
+          as: 'employee',
+          include: [
+            { model: Department, as: 'department' },
+            { model: Designation, as: 'designation' }
+          ]
+        },
         { model: Department, as: 'department', attributes: ['id', 'name'] }
       ],
       attributes: { exclude: ['password'] }
@@ -150,6 +157,14 @@ router.put('/:id', async (req, res) => {
     }
 
     await user.update(updates);
+
+    // If active is updated, sync employee status
+    if (active !== undefined) {
+      const employee = await Employee.findOne({ where: { userId: id } });
+      if (employee) {
+        await employee.update({ status: active ? 'Active' : 'Inactive' });
+      }
+    }
 
     res.json({
       message: 'User updated successfully',

@@ -60,7 +60,7 @@ export default function UsersPage() {
     setIsLoading(true);
     try {
       if (!token) return;
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -91,7 +91,7 @@ export default function UsersPage() {
     }
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users`, {
         method: 'POST',
         headers: {
@@ -153,7 +153,7 @@ export default function UsersPage() {
         bodyPayload.password = password; // Only update if reset was written
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users/${selectedUser.id}`, {
         method: 'PUT',
         headers: {
@@ -184,7 +184,7 @@ export default function UsersPage() {
 
   const toggleUserActive = async (userItem: UserItem) => {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users/${userItem.id}`, {
         method: 'PUT',
         headers: {
@@ -203,7 +203,7 @@ export default function UsersPage() {
   const handleDeleteUser = async (id: number) => {
     if (!confirm('Are you sure you want to delete this user? This will also delete their Employee Profile.')) return;
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
@@ -301,7 +301,7 @@ export default function UsersPage() {
             className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-blue-500 w-full sm:w-auto"
           >
             <option value="All">All Roles</option>
-            {ROLES.map(r => <option key={r.id} value={r.name}>{r.name.replace(/_/g, ' ')}</option>)}
+            {ROLES.map(r => <option key={r.id} value={r.name}>{r.name === 'SUPER_ADMIN' ? 'Super Admin' : r.name.replace(/_/g, ' ')}</option>)}
           </select>
           <select
             value={statusFilter}
@@ -369,7 +369,7 @@ export default function UsersPage() {
                             ? 'bg-blue-50 text-blue-700 border-blue-100'
                             : 'bg-slate-50 text-slate-700 border-slate-200'
                         }`}>
-                          {roleLabel.replace(/_/g, ' ')}
+                          {roleLabel === 'SUPER_ADMIN' ? 'Super Admin' : roleLabel.replace(/_/g, ' ')}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-slate-600 text-sm font-medium">
@@ -488,7 +488,7 @@ export default function UsersPage() {
                     onChange={(e) => setRoleId(Number(e.target.value))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 font-bold focus:outline-none focus:border-blue-500"
                   >
-                    {ROLES.map(r => <option key={r.id} value={r.id}>{r.name.replace(/_/g, ' ')}</option>)}
+                    {ROLES.map(r => <option key={r.id} value={r.id}>{r.name === 'SUPER_ADMIN' ? 'Super Admin' : r.name.replace(/_/g, ' ')}</option>)}
                   </select>
                 </div>
                 <div>
@@ -603,7 +603,7 @@ export default function UsersPage() {
                     onChange={(e) => setRoleId(Number(e.target.value))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 font-bold focus:outline-none focus:border-blue-500"
                   >
-                    {ROLES.map(r => <option key={r.id} value={r.id}>{r.name.replace(/_/g, ' ')}</option>)}
+                    {ROLES.map(r => <option key={r.id} value={r.id}>{r.name === 'SUPER_ADMIN' ? 'Super Admin' : r.name.replace(/_/g, ' ')}</option>)}
                   </select>
                 </div>
                 <div>

@@ -7,7 +7,7 @@ import { User, Phone, Mail, Calendar, Building, Award, Shield, Key, AlertCircle,
 
 export default function ProfilePage() {
   const { token, user, refreshUser } = useAuth();
-  
+
   // Tab control
   const [activeTab, setActiveTab] = useState<'info' | 'security'>('info');
 
@@ -24,6 +24,10 @@ export default function ProfilePage() {
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fullEmployee, setFullEmployee] = useState<any>(null);
+  const [isSyncing, setIsSyncing] = useState(true);
+
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://66.116.227.217:5001/api';
 
   useEffect(() => {
     if (user?.employee) {
@@ -33,6 +37,32 @@ export default function ProfilePage() {
       setEmail(user.email || '');
     }
   }, [user]);
+
+  // Fetch fresh employee data directly from server (bypasses stale localStorage cache)
+  useEffect(() => {
+    const fetchFullProfile = async () => {
+      try {
+        if (!token || !user?.employee?.id) return;
+        // Direct fetch so we always get the latest department + designation from DB
+        const res = await fetch(`${API_BASE}/employees/${user.employee.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setFullEmployee(data);
+          // Update form fields from fresh data too
+          setFirstName(data.firstName || '');
+          setLastName(data.lastName || '');
+          setPhone(data.phone || '');
+        }
+      } catch (error) {
+        console.error('[Profile] Failed to load fresh employee data:', error);
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+    fetchFullProfile();
+  }, [token, user?.employee?.id]);
 
   const handleInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +91,7 @@ export default function ProfilePage() {
 
       // 2. Update User credentials email if it changed
       if (email !== user?.email) {
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://66.116.227.217:5001/api';
         await fetch(`${baseUrl}/users/${user?.id}`, {
           method: 'PUT',
           headers: {
@@ -73,7 +103,7 @@ export default function ProfilePage() {
       }
 
       setFormSuccess('Profile details updated successfully!');
-      
+
       // Refresh context session
       if (refreshUser) {
         await refreshUser();
@@ -111,8 +141,8 @@ export default function ProfilePage() {
 
     try {
       if (!token || !user) return;
-      
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users/${user.id}`, {
         method: 'PUT',
         headers: {
@@ -162,7 +192,7 @@ export default function ProfilePage() {
             </span>
             <span className="bg-blue-50 text-blue-700 px-2.5 py-0.5 border border-blue-100 rounded-full font-bold text-xs flex items-center gap-1">
               <Shield size={12} />
-              {user.roleName.replace(/_/g, ' ')}
+              {user.roleName === 'SUPER_ADMIN' ? 'Super Admin' : user.roleName.replace(/_/g, ' ')}
             </span>
           </div>
           <p className="text-slate-400 text-xs font-semibold pt-1">
@@ -175,21 +205,19 @@ export default function ProfilePage() {
       <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
         <button
           onClick={() => setActiveTab('info')}
-          className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${
-            activeTab === 'info'
+          className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${activeTab === 'info'
               ? 'bg-white text-slate-900 shadow-sm'
               : 'text-slate-500 hover:text-slate-900'
-          }`}
+            }`}
         >
           <User size={16} /> Personal Info
         </button>
         <button
           onClick={() => setActiveTab('security')}
-          className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${
-            activeTab === 'security'
+          className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${activeTab === 'security'
               ? 'bg-white text-slate-900 shadow-sm'
               : 'text-slate-500 hover:text-slate-900'
-          }`}
+            }`}
         >
           <Key size={16} /> Password & Security
         </button>
@@ -258,7 +286,7 @@ export default function ProfilePage() {
             {user.employee && (
               <div className="pt-4 border-t border-slate-100">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Job Info (Read-Only)</h3>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 text-sm">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-slate-100 rounded-lg text-slate-500">
@@ -266,9 +294,16 @@ export default function ProfilePage() {
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Department</p>
-                      <p className="font-bold text-slate-700">{user.employee.department?.name || 'N/A'}</p>
+                      <p className="font-bold text-slate-700">
+                        {isSyncing ? (
+                          <span className="inline-block w-20 h-4 bg-slate-100 rounded animate-pulse" />
+                        ) : (
+                          fullEmployee?.department?.name || 'N/A'
+                        )}
+                      </p>
                     </div>
                   </div>
+
 
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-slate-100 rounded-lg text-slate-500">
@@ -276,7 +311,13 @@ export default function ProfilePage() {
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Designation</p>
-                      <p className="font-bold text-slate-700">{user.employee.designation?.name || 'N/A'}</p>
+                      <p className="font-bold text-slate-700">
+                        {isSyncing ? (
+                          <span className="inline-block w-20 h-4 bg-slate-100 rounded animate-pulse" />
+                        ) : (
+                          fullEmployee?.designation?.name || 'N/A'
+                        )}
+                      </p>
                     </div>
                   </div>
 

@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useEffect, useState } from 'react';
 import { employeesAPI, authAPI, projectsAPI, tasksAPI, attendanceAPI, dsrAPI, leavesAPI } from '@/lib/api-client';
 import { Employee, Project, Task, Attendance, DSR, Leave } from '@/lib/types';
-import { Search, UserPlus, Mail, Phone, Calendar, BadgeAlert, Award, Briefcase, X, User, Eye, CheckCircle2, FileText } from 'lucide-react';
+import { Search, UserPlus, Mail, Phone, Calendar, BadgeAlert, Award, Briefcase, X, User, Eye, CheckCircle2, FileText, Power } from 'lucide-react';
 
 const DEPARTMENTS = [
   { id: 1, name: 'Engineering' },
@@ -54,6 +54,7 @@ export default function EmployeesPage() {
   const [employeeLeaves, setEmployeeLeaves] = useState<Leave[]>([]);
   const [employeeDSRs, setEmployeeDSRs] = useState<DSR[]>([]);
   const [activeModalTab, setActiveModalTab] = useState<'work' | 'attendance' | 'leaves' | 'dsr'>('work');
+  const [detailsDateFilter, setDetailsDateFilter] = useState('');
   const [isLoadingWorkProfile, setIsLoadingWorkProfile] = useState(false);
 
   // Form states
@@ -88,6 +89,7 @@ export default function EmployeesPage() {
     setShowWorkProfileModal(true);
     setIsLoadingWorkProfile(true);
     setActiveModalTab('work');
+    setDetailsDateFilter('');
     try {
       const tokenToUse = token || '';
       // Fetch projects
@@ -117,6 +119,23 @@ export default function EmployeesPage() {
       console.error('Failed to load employee work profile details:', error);
     } finally {
       setIsLoadingWorkProfile(false);
+    }
+  };
+
+  const handleToggleEmployeeStatus = async (emp: Employee) => {
+    if (!token) return;
+    const newStatus = emp.status === 'Active' ? 'Inactive' : 'Active';
+    try {
+      await employeesAPI.update(emp.id, { status: newStatus }, token);
+      
+      // Update local state lists
+      setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, status: newStatus } : e));
+      if (selectedEmployeeForView && selectedEmployeeForView.id === emp.id) {
+        setSelectedEmployeeForView(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to update employee status');
     }
   };
 
@@ -345,7 +364,7 @@ export default function EmployeesPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <td className="px-6 py-4 whitespace-nowrap text-right space-x-1.5">
                       {(user?.roleName === 'SUPER_ADMIN' || user?.roleName === 'ADMIN' || user?.roleName === 'MANAGER') && (
                         <button
                           onClick={() => handleOpenWorkProfile(emp)}
@@ -354,6 +373,22 @@ export default function EmployeesPage() {
                         >
                           <Eye size={15} />
                           <span className="text-xs font-bold px-0.5">View Work</span>
+                        </button>
+                      )}
+                      {(user?.roleName === 'SUPER_ADMIN' || user?.roleName === 'ADMIN') && (
+                        <button
+                          onClick={() => handleToggleEmployeeStatus(emp)}
+                          className={`p-2 border rounded-lg transition inline-flex items-center gap-1 cursor-pointer ${
+                            emp.status === 'Active'
+                              ? 'bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                              : 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100'
+                          }`}
+                          title={emp.status === 'Active' ? 'Deactivate Employee' : 'Activate Employee'}
+                        >
+                          <Power size={14} />
+                          <span className="text-xs font-bold px-0.5">
+                            {emp.status === 'Active' ? 'Deactivate' : 'Activate'}
+                          </span>
                         </button>
                       )}
                     </td>
@@ -583,7 +618,7 @@ export default function EmployeesPage() {
       {/* Employee Work Profile Modal */}
       {showWorkProfileModal && selectedEmployeeForView && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-slate-50/50">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-extrabold text-lg shadow-md shadow-blue-600/10">
@@ -637,7 +672,7 @@ export default function EmployeesPage() {
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold text-slate-500 uppercase">System Role</p>
                     <span className="inline-block text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded px-2 py-0.5 mt-0.5">
-                      {selectedEmployeeForView.user?.roleName || 'EMPLOYEE'}
+                      {selectedEmployeeForView.user?.roleName === 'SUPER_ADMIN' ? 'Super Admin' : (selectedEmployeeForView.user?.roleName || 'EMPLOYEE')}
                     </span>
                   </div>
 
@@ -652,6 +687,22 @@ export default function EmployeesPage() {
                     <p className="text-[10px] font-bold text-slate-500 uppercase">Status</p>
                     <div className="mt-1">{getStatusBadge(selectedEmployeeForView.status)}</div>
                   </div>
+
+                  {(user?.roleName === 'SUPER_ADMIN' || user?.roleName === 'ADMIN') && (
+                    <div className="pt-2">
+                      <button
+                        onClick={() => handleToggleEmployeeStatus(selectedEmployeeForView)}
+                        className={`w-full py-2 px-3 border rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                          selectedEmployeeForView.status === 'Active'
+                            ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                            : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                        }`}
+                      >
+                        <Power size={13} />
+                        <span>{selectedEmployeeForView.status === 'Active' ? 'Deactivate Employee' : 'Activate Employee'}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -705,6 +756,32 @@ export default function EmployeesPage() {
                   </button>
                 </div>
 
+                {/* Date Filter Console */}
+                <div className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3.5 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-slate-400" />
+                    <span className="text-xs font-bold text-slate-700">Filter logs by specific date:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={detailsDateFilter}
+                      onChange={(e) => setDetailsDateFilter(e.target.value)}
+                      className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-blue-500 text-black"
+                    />
+                    {detailsDateFilter && (
+                      <button
+                        onClick={() => setDetailsDateFilter('')}
+                        className="px-2 py-1 bg-slate-250 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-extrabold transition cursor-pointer"
+                      >
+                        Reset Filter
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Content */}
+
                 {isLoadingWorkProfile ? (
                   <div className="space-y-4 animate-pulse py-8">
                     <div className="h-6 bg-slate-200 rounded w-1/3"></div>
@@ -754,16 +831,16 @@ export default function EmployeesPage() {
                     <div className="space-y-3 pt-2 animate-fade-in">
                       <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
                         <CheckCircle2 size={16} className="text-blue-600" />
-                        Assigned Tasks ({employeeTasks.length})
+                        Assigned Tasks ({(detailsDateFilter ? employeeTasks.filter(tsk => tsk.dueDate && new Date(tsk.dueDate).toISOString().split('T')[0] === detailsDateFilter) : employeeTasks).length})
                       </h3>
-                      {employeeTasks.length === 0 ? (
+                      {(detailsDateFilter ? employeeTasks.filter(tsk => tsk.dueDate && new Date(tsk.dueDate).toISOString().split('T')[0] === detailsDateFilter) : employeeTasks).length === 0 ? (
                         <p className="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-100 rounded-lg p-4 text-center">
-                          No tasks assigned to this employee.
+                          No tasks found {detailsDateFilter ? `for ${new Date(detailsDateFilter).toLocaleDateString()}` : 'assigned to this employee'}.
                         </p>
                       ) : (
                         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                          {employeeTasks.map(tsk => (
-                            <div key={tsk.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                          {(detailsDateFilter ? employeeTasks.filter(tsk => tsk.dueDate && new Date(tsk.dueDate).toISOString().split('T')[0] === detailsDateFilter) : employeeTasks).map(tsk => (
+                            <div key={tsk.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between shadow-sm animate-fade-in">
                               <div className="space-y-1">
                                 <h4 className="font-bold text-slate-800 text-sm">{tsk.title}</h4>
                                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
@@ -798,11 +875,11 @@ export default function EmployeesPage() {
                   <div className="space-y-3 animate-fade-in">
                     <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-1.5">
                       <Calendar size={16} className="text-blue-600" />
-                      Attendance Logs ({employeeAttendance.length})
+                      Attendance Logs ({(detailsDateFilter ? employeeAttendance.filter(log => new Date(log.date).toISOString().split('T')[0] === detailsDateFilter) : employeeAttendance).length})
                     </h3>
-                    {employeeAttendance.length === 0 ? (
+                    {(detailsDateFilter ? employeeAttendance.filter(log => new Date(log.date).toISOString().split('T')[0] === detailsDateFilter) : employeeAttendance).length === 0 ? (
                       <p className="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-100 rounded-lg p-4 text-center">
-                        No attendance records found for this employee.
+                        No attendance records found {detailsDateFilter ? `for ${new Date(detailsDateFilter).toLocaleDateString()}` : 'for this employee'}.
                       </p>
                     ) : (
                       <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm max-h-[350px]">
@@ -817,7 +894,7 @@ export default function EmployeesPage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                            {employeeAttendance.map(log => (
+                            {(detailsDateFilter ? employeeAttendance.filter(log => new Date(log.date).toISOString().split('T')[0] === detailsDateFilter) : employeeAttendance).map(log => (
                               <tr key={log.id} className="hover:bg-slate-50/50 transition">
                                 <td className="px-4 py-3 font-semibold text-slate-900">{new Date(log.date).toLocaleDateString()}</td>
                                 <td className="px-4 py-3">{log.checkInTime || '-'}</td>
@@ -843,15 +920,30 @@ export default function EmployeesPage() {
                   <div className="space-y-3 animate-fade-in">
                     <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-1.5">
                       <Calendar size={16} className="text-blue-600" />
-                      Leave Applications ({employeeLeaves.length})
+                      Leave Applications ({(detailsDateFilter ? employeeLeaves.filter(leave => {
+                        const d = new Date(detailsDateFilter);
+                        const s = new Date(leave.startDate);
+                        const e = new Date(leave.endDate);
+                        return d >= s && d <= e;
+                      }) : employeeLeaves).length})
                     </h3>
-                    {employeeLeaves.length === 0 ? (
+                    {(detailsDateFilter ? employeeLeaves.filter(leave => {
+                      const d = new Date(detailsDateFilter);
+                      const s = new Date(leave.startDate);
+                      const e = new Date(leave.endDate);
+                      return d >= s && d <= e;
+                    }) : employeeLeaves).length === 0 ? (
                       <p className="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-100 rounded-lg p-4 text-center">
-                        No leave records found for this employee.
+                        No leave records found {detailsDateFilter ? `for ${new Date(detailsDateFilter).toLocaleDateString()}` : 'for this employee'}.
                       </p>
                     ) : (
                       <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
-                        {employeeLeaves.map(leave => (
+                        {(detailsDateFilter ? employeeLeaves.filter(leave => {
+                          const d = new Date(detailsDateFilter);
+                          const s = new Date(leave.startDate);
+                          const e = new Date(leave.endDate);
+                          return d >= s && d <= e;
+                        }) : employeeLeaves).map(leave => (
                           <div key={leave.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
@@ -867,7 +959,7 @@ export default function EmployeesPage() {
                             <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded border ${
                               leave.status === 'Approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
                               leave.status === 'Rejected' ? 'bg-rose-50 text-rose-600 border-rose-200' :
-                              'bg-amber-50 text-amber-600 border-amber-200'
+                              'bg-amber-50 text-amber-600 border-amber-205'
                             }`}>
                               {leave.status}
                             </span>
@@ -880,15 +972,15 @@ export default function EmployeesPage() {
                   <div className="space-y-3 animate-fade-in">
                     <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-1.5">
                       <FileText size={16} className="text-blue-600" />
-                      Daily Status Reports ({employeeDSRs.length})
+                      Daily Status Reports ({(detailsDateFilter ? employeeDSRs.filter(dsr => new Date(dsr.date).toISOString().split('T')[0] === detailsDateFilter) : employeeDSRs).length})
                     </h3>
-                    {employeeDSRs.length === 0 ? (
+                    {(detailsDateFilter ? employeeDSRs.filter(dsr => new Date(dsr.date).toISOString().split('T')[0] === detailsDateFilter) : employeeDSRs).length === 0 ? (
                       <p className="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-100 rounded-lg p-4 text-center">
-                        No DSR records found for this employee.
+                        No DSR records found {detailsDateFilter ? `for ${new Date(detailsDateFilter).toLocaleDateString()}` : 'for this employee'}.
                       </p>
                     ) : (
                       <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                        {employeeDSRs.map(dsr => (
+                        {(detailsDateFilter ? employeeDSRs.filter(dsr => new Date(dsr.date).toISOString().split('T')[0] === detailsDateFilter) : employeeDSRs).map(dsr => (
                           <div key={dsr.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm space-y-2">
                             <div className="flex justify-between items-center pb-2 border-b border-slate-100">
                               <div>

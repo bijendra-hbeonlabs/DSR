@@ -96,6 +96,15 @@ router.put('/:id', async (req, res) => {
     }
 
     await employee.update(req.body);
+
+    // If status is updated, sync user active status
+    if (req.body.status !== undefined) {
+      const user = await User.findByPk(employee.userId);
+      if (user) {
+        await user.update({ active: req.body.status === 'Active' || req.body.status === 'OnLeave' });
+      }
+    }
+
     res.json(employee);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update employee', details: error.message });

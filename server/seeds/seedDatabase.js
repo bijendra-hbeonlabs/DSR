@@ -27,6 +27,7 @@ const seedDatabase = async () => {
       { name: 'Sales', description: 'Sales & Business Development' },
       { name: 'HR', description: 'Human Resources' },
       { name: 'Finance', description: 'Finance & Accounting' },
+      { name: 'Owner', description: 'Owner & Management' },
     ]);
     console.log('[SEED] Created departments');
 
@@ -41,6 +42,7 @@ const seedDatabase = async () => {
       { name: 'Sales Manager', departmentId: departments[2].id },
       { name: 'HR Manager', departmentId: departments[3].id },
       { name: 'Finance Manager', departmentId: departments[4].id },
+      { name: 'Super Admin', departmentId: departments[5].id },
     ]);
     console.log('[SEED] Created designations');
 
@@ -51,7 +53,7 @@ const seedDatabase = async () => {
         email: 'superadmin@hbeonlabs.com',
         password: await hashPassword('Hbeonlabs@2026'),
         roleId: roles[0].id,
-        departmentId: departments[3].id,
+        departmentId: departments[5].id, // Executive department
         active: true,
       },
       {
@@ -84,6 +86,7 @@ const seedDatabase = async () => {
     // Update department heads
     await departments[0].update({ headId: users[2].id });
     await departments[3].update({ headId: users[1].id });
+    await departments[5].update({ headId: users[0].id }); // CEO heads Executive department
 
     // Create Employees
     const employees = await Employee.bulkCreate([
@@ -93,8 +96,8 @@ const seedDatabase = async () => {
         lastName: 'Admin',
         email: 'superadmin@hbeonlabs.com',
         phone: '+1-555-1000',
-        departmentId: departments[3].id,
-        designationId: designations[7].id,
+        departmentId: departments[5].id, // Executive
+        designationId: designations[9].id, // CEO
         status: 'Active',
         joinDate: new Date('2022-01-01'),
       },

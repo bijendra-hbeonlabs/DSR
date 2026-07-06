@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -130,6 +130,10 @@ export const attendanceAPI = {
 
   checkOut: async (token?: string) => {
     return apiCall('/attendance/check-out', { method: 'POST', token });
+  },
+
+  exportSummary: async (startDate: string, endDate: string, token?: string) => {
+    return apiCall(`/attendance/export-summary?startDate=${startDate}&endDate=${endDate}`, { token });
   },
 
   esslSync: async (ip: string, port: number, token?: string) => {

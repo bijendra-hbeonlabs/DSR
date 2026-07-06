@@ -71,6 +71,7 @@ export default function DSRPage() {
   const [reviewComments, setReviewComments] = useState('');
   const [isReviewing, setIsReviewing] = useState(false);
   const [formError, setFormError] = useState('');
+  const [isSubmittingDirectly, setIsSubmittingDirectly] = useState(false);
 
   const fetchDSRs = async () => {
     if (!token) return;
@@ -139,6 +140,7 @@ export default function DSRPage() {
         tomorrowsPlan,
         completionPercentage,
         priority,
+        status: isSubmittingDirectly ? 'Submitted' : 'Draft',
         date: new Date()
       }, token || undefined);
 
@@ -555,9 +557,17 @@ export default function DSRPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition shadow-md shadow-blue-600/10 cursor-pointer"
+                  onClick={() => setIsSubmittingDirectly(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition cursor-pointer"
                 >
                   Save Draft
+                </button>
+                <button
+                  type="submit"
+                  onClick={() => setIsSubmittingDirectly(true)}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition shadow-md shadow-blue-600/10 cursor-pointer"
+                >
+                  Submit DSR
                 </button>
               </div>
             </form>

@@ -59,14 +59,23 @@ export default function ChatAssistant() {
   const [input, setInput] = useState('');
   const [queryHistory, setQueryHistory] = useState<string[]>([]);
   const [isPolicyTrained, setIsPolicyTrained] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      sender: 'bot',
-      text: 'Hello! I am your HBEONLABS ML-powered virtual assistant. Ask me about system credentials, DB seeding, MySQL setup, forgot password, user roles, database indexing optimizations for 100k scale, or DSR submissions.',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic role-based greeting message
+  useEffect(() => {
+    const isAdmin = user?.roleName === 'SUPER_ADMIN' || user?.roleName === 'ADMIN';
+    const text = isAdmin
+      ? 'Hello! I am your HBEONLABS virtual assistant. Ask me about system credentials, DB seeding, MySQL setup, forgot password, user roles, database indexing optimizations for 100k scale, or DSR submissions.'
+      : 'Hello! I am your HBEONLABS virtual assistant. Ask me about forgot password, user roles, database indexing optimizations for 100k scale, or DSR submissions.';
+    setMessages([
+      {
+        sender: 'bot',
+        text,
+        timestamp: new Date()
+      }
+    ]);
+  }, [user]);
 
   // Scroll to bottom whenever messages list updates
   useEffect(() => {
@@ -144,14 +153,12 @@ export default function ChatAssistant() {
       if (!matched) {
         // Check for credentials query
         if (userQuery.includes('credentials') || userQuery.includes('login') || userQuery.includes('username') || userQuery.includes('password') || userQuery.includes('user') || userQuery.includes('seeded') || userQuery.includes('seed')) {
-          if (user) {
-            if (user.roleName === 'SUPER_ADMIN' || user.roleName === 'ADMIN') {
-              botResponse = 'Here are the default seeded system credentials:\n• Super Admin: `superadmin` / `Hbeonlabs@2026`\n• Admin: `admin` / `Hbeonlabs@2026`\n• Manager: `manager` / `Hbeonlabs@2026`\n• Employee: `employee` / `Hbeonlabs@2026`.\n\nTo seed the database, run: `pnpm seed` in the project root directory.';
-            } else {
-              botResponse = `Hello ${user.employee?.firstName || user.username},\n\nHere are your current account credentials:\n• Username: \`${user.username}\`\n• Role: \`${user.roleName}\`\n• Email: \`${user.email}\`\n${user.employee ? `• Employee ID: \`#00${user.employee.id}\`\n• Profile: \`${user.employee.firstName} ${user.employee.lastName}\`` : ''}\n\n*Note: Your password is encrypted for security. You can change your password at any time in the Profile page.*`;
-            }
+          if (user && (user.roleName === 'SUPER_ADMIN' || user.roleName === 'ADMIN')) {
+            botResponse = 'Here are the default seeded system credentials:\n• Super Admin: `superadmin` / `Hbeonlabs@2026`\n• Admin: `admin` / `Hbeonlabs@2026`\n• Manager: `manager` / `Hbeonlabs@2026`\n• Employee: `employee` / `Hbeonlabs@2026`.\n\nTo seed the database, run: `pnpm seed` in the project root directory.';
+          } else if (user) {
+            botResponse = `Hello ${user.employee?.firstName || user.username},\n\nHere are your current account credentials:\n• Username: \`${user.username}\`\n• Role: \`${user.roleName}\`\n• Email: \`${user.email}\`\n${user.employee ? `• Employee ID: \`#00${user.employee.id}\`\n• Profile: \`${user.employee.firstName} ${user.employee.lastName}\`` : ''}\n\n*Note: Your password is encrypted for security. You can change your password at any time in the Profile page.*`;
           } else {
-            botResponse = 'Here are the default seeded system credentials:\n• Super Admin: `superadmin` / `Hbeonlabs@2026`\n• Admin: `admin` / `Hbeonlabs@2026`\n• Manager: `manager` / `Hbeonlabs@2026`\n• Employee: `employee` / `Hbeonlabs@2026`.\n\nTo seed the database, run: `pnpm seed` in the project root.';
+            botResponse = 'Access Denied: You must be logged in as an administrator to query default system credentials.';
           }
         } else {
           // Keyword similarity model matching
@@ -172,14 +179,22 @@ export default function ChatAssistant() {
           }
 
           if (bestMatch && maxMatches > 0) {
-            botResponse = bestMatch.answer;
+            // Check for db config keywords and restrict access if not admin
+            const isDbKeyword = bestMatch.keywords.includes('mysql') || bestMatch.keywords.includes('database') || bestMatch.keywords.includes('db') || bestMatch.keywords.includes('sqlite') || bestMatch.keywords.includes('config');
+            const isAdmin = user?.roleName === 'SUPER_ADMIN' || user?.roleName === 'ADMIN';
 
-            // Adaptive contextual learning footnote insertion
-            if (bestMatch.keywords.includes('dsr') && queryHistory.includes('database')) {
-              botResponse += '\n\n*(Adaptive Tip: Ensure your MySQL database is active to save DSR entries safely.)*';
-            }
-            if (bestMatch.keywords.includes('leave') && queryHistory.includes('attendance')) {
-              botResponse += '\n\n*(Adaptive Tip: Logging attendance triggers leave ledger audit adjustments.)*';
+            if (isDbKeyword && !isAdmin) {
+              botResponse = 'Access Denied: Database configuration parameters and credential details are restricted for security and privacy reasons.';
+            } else {
+              botResponse = bestMatch.answer;
+
+              // Adaptive contextual learning footnote insertion
+              if (bestMatch.keywords.includes('dsr') && queryHistory.includes('database')) {
+                botResponse += '\n\n*(Adaptive Tip: Ensure your MySQL database is active to save DSR entries safely.)*';
+              }
+              if (bestMatch.keywords.includes('leave') && queryHistory.includes('attendance')) {
+                botResponse += '\n\n*(Adaptive Tip: Logging attendance triggers leave ledger audit adjustments.)*';
+              }
             }
           }
         }
@@ -279,18 +294,22 @@ export default function ChatAssistant() {
 
           {/* Quick Suggestions Chips */}
           <div className="p-3 bg-slate-950 border-t border-slate-800 flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-            <button
-              onClick={() => handleSuggestionClick('seeded credentials and database seed')}
-              className="text-[10px] px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full transition cursor-pointer font-semibold"
-            >
-              Credentials & DB Seed?
-            </button>
-            <button
-              onClick={() => handleSuggestionClick('mysql database connection')}
-              className="text-[10px] px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full transition cursor-pointer font-semibold"
-            >
-              Setup MySQL?
-            </button>
+            {(user?.roleName === 'SUPER_ADMIN' || user?.roleName === 'ADMIN') && (
+              <>
+                <button
+                  onClick={() => handleSuggestionClick('seeded credentials and database seed')}
+                  className="text-[10px] px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full transition cursor-pointer font-semibold"
+                >
+                  Credentials & DB Seed?
+                </button>
+                <button
+                  onClick={() => handleSuggestionClick('mysql database connection')}
+                  className="text-[10px] px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full transition cursor-pointer font-semibold"
+                >
+                  Setup MySQL?
+                </button>
+              </>
+            )}
             <button
               onClick={() => handleSuggestionClick('how to submit dsr')}
               className="text-[10px] px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-full transition cursor-pointer font-semibold"

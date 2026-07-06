@@ -268,7 +268,7 @@ ${description}`;
           <h1 className="text-3xl font-bold text-slate-900">Projects</h1>
           <p className="text-slate-500 mt-2">Manage and assign corporate projects</p>
         </div>
-        {(user?.roleName === 'SUPER_ADMIN' || user?.roleName === 'ADMIN' || user?.roleName === 'MANAGER') && (
+        {(user?.roleName === 'SUPER_ADMIN' || user?.roleName === 'ADMIN' || user?.roleName === 'MANAGER' || user?.roleName === 'EMPLOYEE') && (
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-semibold shadow-md shadow-blue-600/10 cursor-pointer"

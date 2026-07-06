@@ -30,7 +30,7 @@ export default function DashboardPage() {
       setStats(data);
 
       // Fetch active announcements
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const annRes = await fetch(`${baseUrl}/announcements`, {
         headers: { Authorization: `Bearer ${token}` }
       });

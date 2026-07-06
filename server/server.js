@@ -103,6 +103,23 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`[SERVER] HBEONLABS Backend running on http://localhost:${PORT}`);
     });
+
+    // DSR Reminder scheduler (runs daily at 6:00 PM / 18:00)
+    let lastReminderDate = '';
+    setInterval(async () => {
+      const now = new Date();
+      const dateStr = now.toDateString();
+      if (now.getHours() === 18 && now.getMinutes() === 0 && lastReminderDate !== dateStr) {
+        lastReminderDate = dateStr;
+        console.log(`[Scheduler] Clock is 18:00. Triggering daily DSR reminders...`);
+        try {
+          const { sendDsrReminders } = require('./utils/emailService');
+          await sendDsrReminders();
+        } catch (err) {
+          console.error('[Scheduler Error] Failed to run DSR reminders:', err);
+        }
+      }
+    }, 60000);
   } catch (error) {
     console.error('[SERVER RUNTIME ERROR]', error);
     process.exit(1);

@@ -117,7 +117,27 @@ router.post('/check-out', async (req, res) => {
     }
 
     const checkOutTime = new Date().toTimeString().split(' ')[0];
-    await attendance.update({ checkOutTime });
+    
+    // Calculate working hours and overtime hours
+    let workingHours = 0;
+    let overtimeHours = 0;
+    if (attendance.checkInTime) {
+      const [sH, sM, sS] = attendance.checkInTime.split(':').map(Number);
+      const [eH, eM, eS] = checkOutTime.split(':').map(Number);
+      const startSecs = sH * 3600 + sM * 60 + sS;
+      const endSecs = eH * 3600 + eM * 60 + eS;
+      const diffSecs = endSecs - startSecs;
+      if (diffSecs > 0) {
+        workingHours = parseFloat((diffSecs / 3600).toFixed(2));
+        overtimeHours = parseFloat(Math.max(0, workingHours - 8).toFixed(2));
+      }
+    }
+
+    await attendance.update({ 
+      checkOutTime, 
+      workingHours, 
+      overtimeHours 
+    });
 
     res.json({ message: 'Checked out successfully', attendance });
   } catch (error) {
@@ -143,6 +163,91 @@ router.get('/today/status', async (req, res) => {
     res.json({ attendance: attendance || null });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch status', details: error.message });
+  }
+});
+
+// Get all attendance summaries and details for export (Admin/Super Admin only)
+router.get('/export-summary', async (req, res) => {
+  try {
+    const roleName = req.user.role?.name;
+    if (roleName !== 'SUPER_ADMIN' && roleName !== 'ADMIN') {
+      return res.status(403).json({ error: 'Access denied: Admin role required' });
+    }
+
+    const { startDate, endDate } = req.query;
+    const where = {};
+    if (startDate && endDate) {
+      where.date = {
+        [Op.between]: [new Date(startDate), new Date(endDate)],
+      };
+    }
+
+    // Fetch all employees
+    const employees = await Employee.findAll({
+      attributes: ['id', 'firstName', 'lastName', 'email'],
+    });
+
+    // Fetch all attendance records in the range
+    const attendanceRecords = await Attendance.findAll({
+      where,
+      attributes: ['employeeId', 'date', 'checkInTime', 'checkOutTime', 'status', 'workingHours', 'overtimeHours'],
+    });
+
+    // Aggregate summary per employee
+    const summaries = employees.map(emp => {
+      const records = attendanceRecords.filter(r => r.employeeId === emp.id);
+      
+      let presentDays = 0;
+      let absentDays = 0;
+      let lateDays = 0;
+      let leaveDays = 0;
+      let halfDays = 0;
+      let totalHours = 0;
+
+      records.forEach(r => {
+        const s = r.status;
+        if (s === 'Present' || s === 'Remote' || s === 'WFH') presentDays++;
+        else if (s === 'Absent') absentDays++;
+        else if (s === 'Late') { lateDays++; presentDays++; }
+        else if (s === 'Leave') leaveDays++;
+        else if (s === 'HalfDay') { halfDays++; presentDays += 0.5; }
+        
+        totalHours += parseFloat(r.workingHours || 0);
+      });
+
+      return {
+        employeeId: emp.id,
+        employeeName: `${emp.firstName} ${emp.lastName}`,
+        email: emp.email,
+        presentDays,
+        absentDays,
+        lateDays,
+        leaveDays,
+        halfDays,
+        totalHours: parseFloat(totalHours.toFixed(2)),
+        averageHours: records.length > 0 ? parseFloat((totalHours / records.length).toFixed(2)) : 0
+      };
+    });
+
+    res.json({ 
+      summaries, 
+      detailed: attendanceRecords.map(r => {
+        const emp = employees.find(e => e.id === r.employeeId);
+        return {
+          date: r.date,
+          employeeId: r.employeeId,
+          employeeName: emp ? `${emp.firstName} ${emp.lastName}` : 'Unknown',
+          email: emp ? emp.email : '',
+          checkInTime: r.checkInTime || '-',
+          checkOutTime: r.checkOutTime || '-',
+          status: r.status,
+          workingHours: r.workingHours,
+          overtimeHours: r.overtimeHours
+        };
+      }) 
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate export data', details: error.message });
   }
 });
 

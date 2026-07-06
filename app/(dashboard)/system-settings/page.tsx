@@ -58,7 +58,7 @@ export default function SystemSettingsPage() {
     setIsLoading(true);
     try {
       if (!token) return;
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/announcements`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -89,7 +89,7 @@ export default function SystemSettingsPage() {
     }
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/announcements`, {
         method: 'POST',
         headers: {
@@ -132,7 +132,8 @@ export default function SystemSettingsPage() {
   const handleDeleteAnnouncement = async (id: number) => {
     if (!confirm('Are you sure you want to delete this announcement?')) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/announcements/${id}`, {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const response = await fetch(`${baseUrl}/announcements/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

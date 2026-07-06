@@ -1,4 +1,4 @@
-const { User, Role, Employee } = require('../models');
+const { User, Role, Employee, Department, Designation } = require('../models');
 const { hashPassword, comparePassword } = require('../utils/passwordUtils');
 const { generateToken } = require('../utils/jwt');
 
@@ -15,7 +15,14 @@ const login = async (req, res) => {
       where: { username },
       include: [
         { model: Role, as: 'role' },
-        { model: Employee, as: 'employee' },
+        {
+          model: Employee,
+          as: 'employee',
+          include: [
+            { model: Department, as: 'department' },
+            { model: Designation, as: 'designation' }
+          ]
+        },
       ],
     });
 
