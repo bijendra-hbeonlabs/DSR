@@ -66,7 +66,7 @@ DB_STORAGE=./database.sqlite
 # ==========================================
 # SERVER CONFIGURATION
 # ==========================================
-PORT=5000
+PORT=5001
 NODE_ENV=production
 
 # ==========================================
@@ -78,8 +78,9 @@ JWT_EXPIRY=7d
 # ==========================================
 # FRONTEND / NEXT.JS SETTINGS
 # ==========================================
-# Change localhost to your Server's Public IP or Domain name
-NEXT_PUBLIC_API_URL=http://localhost:5000/api
+# Leaving this blank triggers dynamic domain/IP resolution in the browser!
+# Or set it to '/api' if routing through an Nginx reverse proxy.
+NEXT_PUBLIC_API_URL=
 ```
 
 ---
@@ -109,28 +110,19 @@ pnpm build
 
 ## Step 5: Launch Services using PM2
 
-PM2 ensures the servers remain online, auto-restart upon crashes, and restart automatically during server reboots.
+PM2 ensures the servers remain online, auto-restart upon crashes, and restart automatically during server reboots. We configure both the client and API backend inside a single orchestration config:
 
-1. **Start the Backend Server (Express API)**:
+1. **Launch both apps in production mode**:
    ```bash
-   pm2 start server/server.js --name "hbeonlabs-backend"
+   pm2 start ecosystem.config.js --env production
    ```
 
-2. **Start the Frontend Server (Next.js) on Port 3004**:
-   In `package.json`, the `"start"` script is preconfigured to launch Next.js on port 3004:
-   ```bash
-   # package.json script check
-   # "start": "next start -p 3004"
-   
-   pm2 start pnpm --name "hbeonlabs-frontend" -- start
-   ```
-
-3. **Save PM2 processes state**:
+2. **Save PM2 processes state**:
    ```bash
    pm2 save
    ```
 
-4. **Enable system startup hook**:
+3. **Enable system startup hook**:
    Generates scripts to start PM2 services automatically after system reboots:
    ```bash
    pm2 startup
@@ -142,7 +134,7 @@ PM2 ensures the servers remain online, auto-restart upon crashes, and restart au
 ## Step 6: Verify Deployment
 
 * **Frontend Panel**: Open `http://<your-server-ip>:3004`
-* **API Endpoints**: Open `http://<your-server-ip>:5000/health`
+* **API Endpoints**: Open `http://<your-server-ip>:5001/health`
 
 ### Seeded Credentials
 Use these profiles to log in:
