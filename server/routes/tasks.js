@@ -95,16 +95,32 @@ router.get('/:id', async (req, res) => {
 // Create task
 router.post('/', async (req, res) => {
   try {
-    const { title, description, projectId, assignedTo, priority, dueDate, startDate, estimatedHours, status } = req.body;
+    const { title, description, projectId, customProjectName, assignedTo, priority, dueDate, startDate, estimatedHours, status, taskType, techStack } = req.body;
 
-    if (!title || !projectId) {
-      return res.status(400).json({ error: 'Title and project ID are required' });
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    let finalProjectId = projectId;
+
+    if (customProjectName && customProjectName.trim()) {
+      // Find or create project with this name
+      const [project] = await Project.findOrCreate({
+        where: { name: customProjectName.trim() },
+        defaults: {
+          status: 'Active',
+          progress: 0
+        }
+      });
+      finalProjectId = project.id;
+    } else if (!projectId) {
+      return res.status(400).json({ error: 'Project is required' });
     }
 
     const task = await Task.create({
       title,
       description,
-      projectId,
+      projectId: finalProjectId,
       assignedTo,
       assignedBy: req.user.id,
       priority: priority || 'Medium',
@@ -113,6 +129,8 @@ router.post('/', async (req, res) => {
       startDate,
       estimatedHours,
       progressPercentage: 0,
+      taskType: taskType || 'Development',
+      techStack: techStack || [],
     });
 
     res.status(201).json(task);

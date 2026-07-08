@@ -83,6 +83,16 @@ const Task = sequelize.define(
       type: DataTypes.JSON,
       defaultValue: [],
     },
+    taskType: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: 'Development',
+    },
+    techStack: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: [],
+    },
   },
   {
     timestamps: true,

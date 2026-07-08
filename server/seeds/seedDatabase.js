@@ -1,5 +1,22 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+
+// Graceful MySQL check and SQLite dialect fallback
+const dialect = process.env.DB_DIALECT || 'mysql';
+if (dialect === 'mysql') {
+  try {
+    const cp = require('child_process');
+    const port = process.env.DB_PORT || 3306;
+    const host = process.env.DB_HOST || 'localhost';
+    const user = process.env.DB_USER || 'root';
+    const password = process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : 'password';
+    cp.execSync(`node -e "const mysql = require('mysql2'); const conn = mysql.createConnection({host: '${host}', port: ${port}, user: '${user}', password: '${password}'}); conn.connect((err) => { if (err) { process.exit(1); } else { conn.end(); process.exit(0); } }); setTimeout(() => { process.exit(1); }, 2000);"`, { stdio: 'ignore' });
+  } catch (err) {
+    console.warn('[SEED DATABASE WARNING] MySQL credentials authentication or connection failed. Switching to SQLite fallback database.');
+    process.env.DB_DIALECT = 'sqlite';
+  }
+}
+
 const { sequelize, Role, User, Department, Designation, Employee, Project, Task, Attendance, DSR, Leave, Announcement } = require('../models');
 const { hashPassword } = require('../utils/passwordUtils');
 

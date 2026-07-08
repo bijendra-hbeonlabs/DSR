@@ -441,4 +441,51 @@ pnpm lint             # Check code quality
 
 ---
 
-**Ready to go!** You now have a fully functional WorkFlow AI system running locally. Happy coding!
+## CI/CD: Automatic Deployment on Git Push
+
+We have integrated a professional **GitHub Actions** CI/CD pipeline and **PM2 Process Manager** configuration into the project. When you push to your Git repository (GitHub/GitLab), the server will automatically pull the code, install dependencies, compile the application, and trigger a zero-downtime hot-restart.
+
+### 1. PM2 Orchestration (`ecosystem.config.js`)
+We use `ecosystem.config.js` to manage both the Next.js client and Express.js backend as concurrent processes on your production Linux server:
+- **`ems-backend`**: Runs the Express API on port `5001`.
+- **`ems-frontend`**: Runs the Next.js production server on port `3000`.
+
+To start them on your server manually using PM2:
+```bash
+# Install PM2 globally (if not already installed)
+npm install -g pm2
+
+# Start both servers in production mode
+pm2 start ecosystem.config.js --env production
+
+# Check status of the applications
+pm2 status
+
+# Set PM2 to automatically start on server reboot
+pm2 startup
+pm2 save
+```
+
+### 2. Configure GitHub Actions Workflow
+The workflow file `.github/workflows/deploy.yml` triggers automatically on every push to the `main` or `master` branch.
+
+To enable this:
+1. Open your GitHub Repository and go to **Settings** > **Secrets and variables** > **Actions**.
+2. Add the following **Repository Secrets**:
+   - **`SERVER_HOST`**: The IP address or domain name of your deployment server (e.g. `15.206.184.22`).
+   - **`SERVER_USER`**: The SSH username of the server (e.g. `ubuntu`, `root`).
+   - **`SSH_PRIVATE_KEY`**: Your server's private SSH key (value of `id_rsa`).
+   - **`SERVER_PORT`**: *(Optional)* The SSH port if different from default `22` (e.g. `2201`).
+
+3. Once configured, simply run:
+   ```bash
+   git add .
+   git commit -m "Configure auto deployment pipeline"
+   git push origin main
+   ```
+   GitHub Actions will instantly spin up a runner, connect to your server, pull the latest commits, build Next.js, and restart PM2 gracefully!
+
+---
+
+**Ready to go!** You now have a fully functional Employee Management System running locally with production-ready AI Face Verification and CI/CD pipelines. Happy coding!
+

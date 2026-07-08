@@ -72,6 +72,10 @@ const Employee = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    faceTemplate: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
   },
   {
     timestamps: true,

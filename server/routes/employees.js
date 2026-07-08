@@ -141,4 +141,24 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Register Face Template for the logged-in user
+router.post('/register-face', async (req, res) => {
+  try {
+    const { faceTemplate } = req.body;
+    if (!faceTemplate) {
+      return res.status(400).json({ error: 'Face template is required' });
+    }
+
+    const employee = await Employee.findOne({ where: { userId: req.user.id } });
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee profile not found' });
+    }
+
+    await employee.update({ faceTemplate });
+    res.json({ message: 'Face template registered successfully', employee });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to register face template', details: error.message });
+  }
+});
+
 module.exports = router;

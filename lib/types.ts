@@ -63,6 +63,7 @@ export interface Employee {
   joinDate?: string;
   status: 'Active' | 'Inactive' | 'OnLeave';
   avatar?: string;
+  faceTemplate?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -143,6 +144,8 @@ export interface Task {
   comments: any[];
   attachments: any[];
   checklist: any[];
+  taskType?: string;
+  techStack?: string[];
   createdAt: string;
   updatedAt: string;
 }

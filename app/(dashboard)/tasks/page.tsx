@@ -9,6 +9,12 @@ import { Plus, Edit2, Trash2, Eye, Filter, Grid3x3, List, X, CheckSquare, Clock,
 type ViewMode = 'kanban' | 'table';
 const STATUSES: TaskStatus[] = ['Pending', 'InProgress', 'Completed', 'Closed'];
 
+const AVAILABLE_TECH = [
+  'React', 'Next.js', 'TypeScript', 'Node.js', 'Python', 'Go', 'Rust',
+  'MySQL', 'PostgreSQL', 'SQLite', 'MongoDB', 'Redis', 'Docker', 'AWS',
+  'TailwindCSS', 'Figma', 'Embedded C', 'Firmware', 'Hardware', 'UI/UX', 'CI/CD'
+];
+
 export default function TasksPage() {
   const { user, token } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -31,13 +37,16 @@ export default function TasksPage() {
   // Form states (Create Task)
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [projectId, setProjectId] = useState<number | ''>('');
+  const [projectId, setProjectId] = useState<number | '' | 'custom'>('');
+  const [customProjectName, setCustomProjectName] = useState('');
   const [assignedTo, setAssignedTo] = useState<number | ''>('');
   const [priority, setPriority] = useState<TaskPriority>('Medium');
   const [dueDate, setDueDate] = useState('');
   const [startDate, setStartDate] = useState('');
   const [createStatus, setCreateStatus] = useState<TaskStatus>('Pending');
   const [estimatedHours, setEstimatedHours] = useState('');
+  const [taskType, setTaskType] = useState('Development');
+  const [techStack, setTechStack] = useState<string[]>([]);
   const [formError, setFormError] = useState('');
 
   // Form states (Update Task Progress / Status)
@@ -108,28 +117,39 @@ export default function TasksPage() {
       return;
     }
 
+    if (projectId === 'custom' && !customProjectName.trim()) {
+      setFormError('Custom Project Name is required');
+      return;
+    }
+
     try {
       await tasksAPI.create({
         title,
         description,
-        projectId: Number(projectId),
+        projectId: projectId === 'custom' ? undefined : Number(projectId),
+        customProjectName: projectId === 'custom' ? customProjectName.trim() : undefined,
         assignedTo: assignedTo ? Number(assignedTo) : undefined,
         priority,
         dueDate: dueDate ? new Date(dueDate) : undefined,
         startDate: startDate ? new Date(startDate) : undefined,
         status: createStatus,
         estimatedHours: estimatedHours ? Number(estimatedHours) : undefined,
+        taskType,
+        techStack,
       }, token || undefined);
 
       setTitle('');
       setDescription('');
       setProjectId('');
+      setCustomProjectName('');
       setAssignedTo('');
       setPriority('Medium');
       setDueDate('');
       setStartDate('');
       setCreateStatus('Pending');
       setEstimatedHours('');
+      setTaskType('Development');
+      setTechStack([]);
       setShowCreateModal(false);
       await fetchTasks();
     } catch (error: any) {
@@ -457,13 +477,14 @@ export default function TasksPage() {
                   <select
                     required
                     value={projectId}
-                    onChange={(e) => setProjectId(e.target.value === '' ? '' : Number(e.target.value))}
+                    onChange={(e) => setProjectId(e.target.value === '' ? '' : (e.target.value === 'custom' ? 'custom' : Number(e.target.value)))}
                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-black focus:outline-none focus:border-blue-500"
                   >
                     <option value="">Choose Project...</option>
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
+                    <option value="custom">-- Create Custom Project --</option>
                   </select>
                 </div>
                 <div className="space-y-1">
@@ -482,6 +503,20 @@ export default function TasksPage() {
                   </select>
                 </div>
               </div>
+
+              {projectId === 'custom' && (
+                <div className="space-y-1 p-3.5 bg-slate-50 border border-slate-200 rounded-xl animate-fade-in">
+                  <label className="text-xs font-bold text-slate-700">Custom Project Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={customProjectName}
+                    onChange={(e) => setCustomProjectName(e.target.value)}
+                    placeholder="e.g. Firmware Sync v2"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-black focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -540,6 +575,56 @@ export default function TasksPage() {
                     onChange={(e) => setDueDate(e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-black focus:outline-none focus:border-blue-500"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Task Type</label>
+                  <select
+                    value={taskType}
+                    onChange={(e) => setTaskType(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-black focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="Development">Development</option>
+                    <option value="Bug Fixing">Bug Fixing</option>
+                    <option value="Design">Design</option>
+                    <option value="Research">Research</option>
+                    <option value="Testing">Testing</option>
+                    <option value="Documentation">Documentation</option>
+                    <option value="Hardware Design">Hardware Design</option>
+                    <option value="Firmware Dev">Firmware Dev</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Choose Tech Stack</label>
+                <div className="flex flex-wrap gap-1.5 p-3 bg-slate-50 border border-slate-200 rounded-xl max-h-36 overflow-y-auto">
+                  {AVAILABLE_TECH.map(tech => {
+                    const isSelected = techStack.includes(tech);
+                    return (
+                      <button
+                        key={tech}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setTechStack(techStack.filter(t => t !== tech));
+                          } else {
+                            setTechStack([...techStack, tech]);
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {tech}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -618,6 +703,32 @@ export default function TasksPage() {
                       {selectedTaskDetails.description || 'No description or checklists provided.'}
                     </p>
                   </div>
+
+                  {/* Task Type & Tech Stack Info */}
+                  {(selectedTaskDetails.taskType || (selectedTaskDetails.techStack && selectedTaskDetails.techStack.length > 0)) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                      {selectedTaskDetails.taskType && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Task Type</span>
+                          <span className="inline-block bg-blue-50 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-md border border-blue-100">
+                            {selectedTaskDetails.taskType}
+                          </span>
+                        </div>
+                      )}
+                      {selectedTaskDetails.techStack && selectedTaskDetails.techStack.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Tech Stack</span>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedTaskDetails.techStack.map((tech: string) => (
+                              <span key={tech} className="bg-white text-slate-700 text-[10px] font-bold px-2.5 py-1 rounded-full border border-slate-200">
+                                {tech}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Timings */}
                   <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs font-semibold text-slate-700">

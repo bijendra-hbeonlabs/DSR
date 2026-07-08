@@ -2,9 +2,9 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { useEffect, useState, useRef } from 'react';
-import { attendanceAPI } from '@/lib/api-client';
+import { attendanceAPI, employeesAPI } from '@/lib/api-client';
 import { Attendance, AttendanceStatus } from '@/lib/types';
-import { Clock, CheckCircle, XCircle, Calendar, Camera, Info, Server } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Calendar, Camera, Info, Server, ShieldCheck, UserCheck } from 'lucide-react';
 
 interface TodayStatus {
   checkInTime?: string;
@@ -14,7 +14,7 @@ interface TodayStatus {
 }
 
 export default function AttendancePage() {
-  const { user, token } = useAuth();
+  const { user, token, refreshUser } = useAuth();
   const [todayStatus, setTodayStatus] = useState<TodayStatus | null>(null);
   const [records, setRecords] = useState<Attendance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,9 +32,17 @@ export default function AttendancePage() {
   const [showWebcamModal, setShowWebcamModal] = useState(false);
   const [webcamStep, setWebcamStep] = useState<'idle' | 'scanning' | 'success'>('idle');
   const [scanProgress, setScanProgress] = useState(0);
-  const [webcamMode, setWebcamMode] = useState<'check-in' | 'check-out'>('check-in');
+  const [webcamMode, setWebcamMode] = useState<'check-in' | 'check-out' | 'register'>('check-in');
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+
+  // Real Face API States
+  const [faceApiLoaded, setFaceApiLoaded] = useState(false);
+  const [faceApiModelsLoaded, setFaceApiModelsLoaded] = useState(false);
+  const [faceMatchPct, setFaceMatchPct] = useState<number | null>(null);
+  const [faceStatusText, setFaceStatusText] = useState<string>('Initializing camera...');
+  const latestDescriptorRef = useRef<Float32Array | null>(null);
+  const scanIntervalRef = useRef<any>(null);
 
   // Live session timer state
   const [liveWorkingTime, setLiveWorkingTime] = useState<string>('00:00:00');
@@ -50,6 +58,31 @@ export default function AttendancePage() {
     fetchAttendanceData();
   }, [token, statusFilter, dateFrom, dateTo]);
 
+  // Load face-api.js from CDN
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if ((window as any).faceapi) {
+      setFaceApiLoaded(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js';
+    script.async = true;
+    script.onload = () => {
+      setFaceApiLoaded(true);
+      console.log('[Face API] CDN Script loaded successfully.');
+    };
+    script.onerror = () => {
+      setFaceStatusText('Failed to load face verification script.');
+    };
+    document.body.appendChild(script);
+    return () => {
+      try {
+        document.body.removeChild(script);
+      } catch (e) {}
+    };
+  }, []);
+
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -59,8 +92,10 @@ export default function AttendancePage() {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
+      return stream;
     } catch (err) {
       console.error('Failed to acquire webcam stream:', err);
+      setFaceStatusText('Camera access denied or unavailable.');
     }
   };
 
@@ -71,48 +106,138 @@ export default function AttendancePage() {
     }
   };
 
-  // Webcam Scanning Animation Loop & Real Video Control
-  useEffect(() => {
-    let interval: any;
-    if (showWebcamModal && webcamStep === 'scanning') {
-      startCamera();
-      interval = setInterval(() => {
-        setScanProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setWebcamStep('success');
-            setTimeout(async () => {
-              try {
-                if (token) {
-                  if (webcamMode === 'check-in') {
-                    await attendanceAPI.checkIn(token);
-                  } else {
-                    await attendanceAPI.checkOut(token);
-                  }
-                  await fetchAttendanceData();
-                }
-              } catch (e) {
-                console.error(e);
-              } finally {
-                setShowWebcamModal(false);
-                setWebcamStep('idle');
-                setScanProgress(0);
-                stopCamera();
-              }
-            }, 1200);
-            return 100;
-          }
-          return prev + Math.floor(Math.random() * 12) + 6;
-        });
-      }, 200);
+  const closeWebcamModal = () => {
+    setShowWebcamModal(false);
+    setWebcamStep('idle');
+    setScanProgress(0);
+    setFaceMatchPct(null);
+    latestDescriptorRef.current = null;
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
     }
-    return () => {
-      clearInterval(interval);
-      if (!showWebcamModal) {
-        stopCamera();
+    stopCamera();
+  };
+
+  // Trigger models loading and frame matching loop when modal opens
+  useEffect(() => {
+    const initFaceScan = async () => {
+      if (showWebcamModal && webcamStep === 'scanning') {
+        setFaceStatusText('Connecting camera...');
+        const stream = await startCamera();
+        if (!stream) return;
+
+        const faceapi = (window as any).faceapi;
+        if (!faceapi) {
+          setFaceStatusText('Initializing AI library...');
+          return;
+        }
+
+        // Load models if not loaded yet
+        if (!faceApiModelsLoaded) {
+          setFaceStatusText('Downloading AI networks...');
+          try {
+            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights/';
+            await Promise.all([
+              faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+              faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+              faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+            ]);
+            setFaceApiModelsLoaded(true);
+            setFaceStatusText('AI models ready. Scanning face...');
+          } catch (err) {
+            console.error('Failed to load face-api models:', err);
+            setFaceStatusText('Failed loading face networks.');
+            return;
+          }
+        } else {
+          setFaceStatusText('Scanning face...');
+        }
+
+        // Start scanning frames
+        let detectedFramesCount = 0;
+        scanIntervalRef.current = setInterval(async () => {
+          const video = videoRef.current;
+          if (!video || video.paused || video.ended) return;
+
+          try {
+            const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+            const detection = await faceapi.detectSingleFace(video, options)
+              .withFaceLandmarks()
+              .withFaceDescriptor();
+
+            if (detection) {
+              setScanProgress(100);
+              latestDescriptorRef.current = detection.descriptor;
+
+              if (webcamMode === 'register') {
+                setFaceStatusText('Face template captured! Click "Save Face ID".');
+              } else {
+                // Verify Mode
+                if (user?.employee?.faceTemplate) {
+                  const savedVector = new Float32Array(JSON.parse(user.employee.faceTemplate));
+                  const distance = faceapi.euclideanDistance(detection.descriptor, savedVector);
+                  
+                  // Convert distance to match pct (0.55 distance is standard cutoff)
+                  const pct = Math.max(0, Math.min(100, Math.round((1 - distance / 0.55) * 100)));
+                  setFaceMatchPct(pct);
+
+                  if (pct >= 75) {
+                    detectedFramesCount++;
+                    setFaceStatusText(`Match verified: ${pct}% (${detectedFramesCount}/3)`);
+
+                    // Ensure consecutive matches to avoid single-frame glitch false positives
+                    if (detectedFramesCount >= 3) {
+                      clearInterval(scanIntervalRef.current);
+                      scanIntervalRef.current = null;
+                      setWebcamStep('success');
+
+                      setTimeout(async () => {
+                        try {
+                          if (token) {
+                            if (webcamMode === 'check-in') {
+                              await attendanceAPI.checkIn(token);
+                            } else {
+                              await attendanceAPI.checkOut(token);
+                            }
+                            await fetchAttendanceData();
+                          }
+                        } catch (e) {
+                          console.error(e);
+                        } finally {
+                          closeWebcamModal();
+                        }
+                      }, 1200);
+                    }
+                  } else {
+                    detectedFramesCount = 0;
+                    setFaceStatusText(`Incorrect Face Profile (${pct}%)`);
+                  }
+                } else {
+                  setFaceStatusText('No registered Face ID found.');
+                }
+              }
+            } else {
+              setScanProgress(0);
+              setFaceMatchPct(null);
+              detectedFramesCount = 0;
+              setFaceStatusText('Align your face in the center of camera...');
+            }
+          } catch (e) {
+            console.error('Frame parse error:', e);
+          }
+        }, 300);
       }
     };
-  }, [showWebcamModal, webcamStep, token, webcamMode]);
+
+    initFaceScan();
+
+    return () => {
+      if (!showWebcamModal) {
+        closeWebcamModal();
+      }
+    };
+  }, [showWebcamModal, webcamStep, faceApiLoaded]);
 
   // Live session ticking working timer effect
   const isCheckedInToday = todayStatus?.checkInTime;
@@ -171,6 +296,11 @@ export default function AttendancePage() {
   };
 
   const triggerWebcamCheckIn = () => {
+    if (!user?.employee?.faceTemplate) {
+      alert('You have not registered your Face ID yet. The camera will now open in Face Registration mode.');
+      triggerWebcamRegister();
+      return;
+    }
     setWebcamMode('check-in');
     setShowWebcamModal(true);
     setWebcamStep('scanning');
@@ -178,10 +308,40 @@ export default function AttendancePage() {
   };
 
   const triggerWebcamCheckOut = () => {
+    if (!user?.employee?.faceTemplate) {
+      alert('You have not registered your Face ID yet. The camera will now open in Face Registration mode.');
+      triggerWebcamRegister();
+      return;
+    }
     setWebcamMode('check-out');
     setShowWebcamModal(true);
     setWebcamStep('scanning');
     setScanProgress(0);
+  };
+
+  const triggerWebcamRegister = () => {
+    setWebcamMode('register');
+    setShowWebcamModal(true);
+    setWebcamStep('scanning');
+    setScanProgress(0);
+  };
+
+  const handleSaveFaceTemplate = async () => {
+    if (!latestDescriptorRef.current || !token) return;
+    setFaceStatusText('Registering template in database...');
+    try {
+      const templateStr = JSON.stringify(Array.from(latestDescriptorRef.current));
+      await employeesAPI.registerFace(templateStr, token);
+      await refreshUser();
+      setWebcamStep('success');
+      setFaceStatusText('Face ID Registered Successfully!');
+      setTimeout(() => {
+        closeWebcamModal();
+      }, 1200);
+    } catch (e: any) {
+      console.error(e);
+      setFaceStatusText(e.message || 'Failed to save Face ID.');
+    }
   };
 
   const handleExport = async (type: 'summary' | 'detailed') => {
@@ -328,6 +488,42 @@ export default function AttendancePage() {
         <h1 className="text-3xl font-bold text-foreground">Attendance</h1>
         <p className="text-muted-foreground mt-2">Track your daily attendance and working hours</p>
       </div>
+
+      {/* Face ID Status Warning / Enrollment Panel */}
+      {!user?.employee?.faceTemplate ? (
+        <div className="bg-amber-50 border border-amber-250 rounded-xl p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 shrink-0">
+              <Camera size={20} />
+            </div>
+            <div className="text-left">
+              <h4 className="font-bold text-slate-800 text-sm">Face ID Enrollment Required</h4>
+              <p className="text-xs text-slate-600 mt-0.5">Please register your Face ID signature to enable secure webcam attendance clock-in.</p>
+            </div>
+          </div>
+          <button
+            onClick={triggerWebcamRegister}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition shadow-sm shrink-0 cursor-pointer"
+          >
+            Enroll Face ID Now
+          </button>
+        </div>
+      ) : (
+        <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shrink-0">
+              <ShieldCheck size={14} />
+            </div>
+            <span className="text-xs font-semibold text-slate-700">Face ID Biometrics Sync: <strong className="text-emerald-700">Enrolled & Verified</strong></span>
+          </div>
+          <button
+            onClick={triggerWebcamRegister}
+            className="text-xs text-blue-600 hover:underline font-bold transition cursor-pointer"
+          >
+            Re-enroll Face Profile
+          </button>
+        </div>
+      )}
 
       {/* Today's Status Card */}
       <div className="bg-gradient-to-br from-blue-600 to-blue-750 rounded-xl p-8 text-white shadow-lg">
@@ -618,8 +814,11 @@ export default function AttendancePage() {
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <span className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />
-                AI Facial Recognition Scan ({webcamMode === 'check-in' ? 'Check In' : 'Check Out'})
+                AI Facial Recognition Scan ({webcamMode === 'check-in' ? 'Check In' : (webcamMode === 'check-out' ? 'Check Out' : 'Register Face ID')})
               </h3>
+              <button onClick={closeWebcamModal} className="text-slate-400 hover:text-white transition">
+                <XCircle size={18} className="cursor-pointer" />
+              </button>
             </div>
 
             {/* Scanning Viewport */}
@@ -644,22 +843,44 @@ export default function AttendancePage() {
               <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:16px_16px]" />
 
               {webcamStep === 'scanning' ? (
-                <div className="space-y-3 z-10 bg-slate-950/60 p-4 rounded-xl backdrop-blur-xs">
-                  <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                  <p className="text-xs text-blue-400 font-bold uppercase tracking-wider">Mapping Face Nodes: {Math.min(100, scanProgress)}%</p>
+                <div className="space-y-2 z-10 bg-slate-950/70 p-4 rounded-xl backdrop-blur-xs max-w-[85%]">
+                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-xs text-blue-400 font-bold uppercase tracking-wider">{faceStatusText}</p>
+                  {faceMatchPct !== null && (
+                    <p className="text-[10px] text-white font-bold">Accuracy: {faceMatchPct}%</p>
+                  )}
                 </div>
               ) : (
-                <div className="space-y-3 z-10 bg-slate-950/60 p-4 rounded-xl backdrop-blur-xs animate-scale-in">
+                <div className="space-y-3 z-10 bg-slate-950/70 p-4 rounded-xl backdrop-blur-xs animate-scale-in">
                   <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-450 rounded-full flex items-center justify-center mx-auto text-emerald-400">
                     <CheckCircle size={22} />
                   </div>
-                  <p className="text-xs text-emerald-400 font-bold uppercase tracking-wider">Face Verified: Match 99.8%</p>
+                  <p className="text-xs text-emerald-400 font-bold uppercase tracking-wider">{faceStatusText}</p>
                 </div>
               )}
             </div>
 
             <div className="text-xs text-slate-400 leading-relaxed">
-              Please look directly at your camera console to complete authentication alignment parameters.
+              Please align your head in the viewport frame.
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              {webcamMode === 'register' && webcamStep === 'scanning' && scanProgress === 100 && (
+                <button
+                  onClick={handleSaveFaceTemplate}
+                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <ShieldCheck size={16} />
+                  <span>Save Face ID</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={closeWebcamModal}
+                className="w-full py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg shadow transition cursor-pointer"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

@@ -111,6 +111,10 @@ export const employeesAPI = {
   delete: async (id: number, token?: string) => {
     return apiCall(`/employees/${id}`, { method: 'DELETE', token });
   },
+
+  registerFace: async (faceTemplate: string, token?: string) => {
+    return apiCall('/employees/register-face', { method: 'POST', body: { faceTemplate }, token });
+  },
 };
 
 // Attendance API methods
