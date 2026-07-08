@@ -93,16 +93,16 @@ pnpm dev
 ```
 Terminal 1: 
   ▲ Next.js 16.2.6
-  - Local: http://localhost:3000
+  - Local: http://localhost:3004
 
 Terminal 2:
-  [SERVER] WorkFlow AI Backend running on http://localhost:5000
+  [SERVER] WorkFlow AI Backend running on http://localhost:5001
   [DATABASE] Connected and synced successfully
 ```
 
 ### Step 6: Login
 
-1. Open http://localhost:3000 in your browser
+1. Open http://localhost:3004 in your browser
 2. Use any test credentials above
 3. You'll be redirected to the dashboard
 
@@ -193,7 +193,7 @@ If `pnpm dev` doesn't work or you prefer separate terminals:
 **Terminal 1 - Frontend:**
 ```bash
 pnpm dev:frontend
-# Starts: http://localhost:3000
+# Starts: http://localhost:
 ```
 
 **Terminal 2 - Backend:**
@@ -239,13 +239,13 @@ brew services restart mysql         # macOS
 # Windows: Services app → MySQL Server → Restart
 ```
 
-### Issue: "Port 3000 or 5000 already in use"
+### Issue: "Port 3004 or 5001 already in use"
 
 **Solution:**
 ```bash
 # Find what's using the port
-lsof -i :3000    # Frontend
-lsof -i :5000    # Backend
+lsof -i :3004    # Frontend
+lsof -i :5001    # Backend
 
 # Kill the process
 kill -9 <PID>
@@ -275,7 +275,7 @@ CREATE DATABASE workflow_ai;
 
 ```
 ┌─────────────────────────────────────────────────┐
-│           BROWSER (http://localhost:3000)       │
+│           BROWSER (http://localhost:3004)       │
 │                 Next.js Frontend                 │
 │  ┌─────────────────────────────────────────┐   │
 │  │  Login Page → Protected Dashboard       │   │
@@ -448,7 +448,7 @@ We have integrated a professional **GitHub Actions** CI/CD pipeline and **PM2 Pr
 ### 1. PM2 Orchestration (`ecosystem.config.js`)
 We use `ecosystem.config.js` to manage both the Next.js client and Express.js backend as concurrent processes on your production Linux server:
 - **`ems-backend`**: Runs the Express API on port `5001`.
-- **`ems-frontend`**: Runs the Next.js production server on port `3000`.
+- **`ems-frontend`**: Runs the Next.js production server on port `3004`.
 
 To start them on your server manually using PM2:
 ```bash

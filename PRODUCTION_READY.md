@@ -200,12 +200,12 @@ pnpm dev
 ```
 
 This runs:
-- Next.js frontend on `http://localhost:3000`
+- Next.js frontend on `http://localhost:3004`
 - Express backend on `http://localhost:5000`
 
 ### 5. Login & Test
 
-Open http://localhost:3000 and login with any test credentials above.
+Open http://localhost:3004 and login with any test credentials above.
 
 ---
 
@@ -367,7 +367,7 @@ Open http://localhost:3000 and login with any test credentials above.
 
 ### Port Already in Use
 - Change port in `.env.development.local`
-- Kill process: `lsof -i :5000` or `lsof -i :3000`
+- Kill process: `lsof -i :5000` or `lsof -i :3004`
 
 ---
 

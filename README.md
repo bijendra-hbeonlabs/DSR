@@ -183,7 +183,7 @@ pnpm seed
 # Starts both frontend and backend concurrently
 pnpm dev
 ```
-- **Frontend Panel**: `http://localhost:3000`
+- **Frontend Panel**: `http://localhost:3004`
 - **Backend API**: `http://localhost:5001/api`
 
 ---

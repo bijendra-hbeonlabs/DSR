@@ -71,7 +71,7 @@ DOCUMENTATION:
    $ pnpm dev
    
    Runs both:
-   - Frontend: http://localhost:3000
+   - Frontend: http://localhost:3004
    - Backend: http://localhost:5000
 
 3. LOGIN:
@@ -200,7 +200,7 @@ For Local Development:
 1. Set up MySQL: CREATE DATABASE workflow_ai;
 2. pnpm install && pnpm seed
 3. pnpm dev
-4. Open http://localhost:3000
+4. Open http://localhost:3004
 
 For Production:
 1. Update JWT_SECRET in .env
