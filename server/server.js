@@ -4,7 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 
 const app = reportAppStartupMiddlewares(express());
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 function reportAppStartupMiddlewares(expressApp) {
   expressApp.use(cors());
