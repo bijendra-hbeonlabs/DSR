@@ -5,6 +5,9 @@ import { useEffect, useState } from 'react';
 import { dsrAPI, projectsAPI } from '@/lib/api-client';
 import { DSR, DSRStatus, Project } from '@/lib/types';
 import { Plus, Eye, CheckCircle, Clock, AlertCircle, X, FileText, Send, BadgeAlert, Calendar, Download, RefreshCw, BarChart } from 'lucide-react';
+const API_BASE = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:5001/api`
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api');
 
 interface ReportStats {
   totalEmployees: number;
@@ -146,8 +149,6 @@ export default function DSRPage() {
     if (activeTab !== 'reports' || !token) return;
     setLoadingReports(true);
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
-      
       // Fetch stats
       const statsRes = await fetch(`${API_BASE}/dsr/reports/stats`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -268,7 +269,6 @@ export default function DSRPage() {
 
   const handleExport = (type: string, format: string) => {
     if (!token) return;
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
     const downloadUrl = `${API_BASE}/dsr/reports/export?type=${type}&format=${format}&date=${dateFilter || new Date().toISOString()}&token=${token}`;
     
     // Open in a new tab or trigger directly

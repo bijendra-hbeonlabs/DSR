@@ -10,6 +10,10 @@ import {
   RefreshCw, Building2, CalendarDays, BadgeCheck,
 } from 'lucide-react';
 
+const baseUrl = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:5001/api`
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api');
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Candidate {
   id: string; name: string; role: string;
@@ -228,7 +232,6 @@ export default function HRFinancePage() {
   const fetchAppraisals = async () => {
     if (!token) return;
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const res = await fetch(`${baseUrl}/appraisals`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -244,7 +247,6 @@ export default function HRFinancePage() {
   const fetchCandidates = async () => {
     if (!token) return;
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const res = await fetch(`${baseUrl}/candidates`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -265,7 +267,6 @@ export default function HRFinancePage() {
   const handleAddAppraisal = async () => {
     if (!appEmployeeId) return;
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const res = await fetch(`${baseUrl}/appraisals`, {
         method: 'POST',
         headers: {
@@ -301,7 +302,6 @@ export default function HRFinancePage() {
   const addCandidate = async () => {
     if (!candName || !candRole) return;
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const res = await fetch(`${baseUrl}/candidates`, {
         method: 'POST',
         headers: {
@@ -330,7 +330,6 @@ export default function HRFinancePage() {
 
   const moveStage = async (id: number | string, stage: string) => {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const res = await fetch(`${baseUrl}/candidates/${id}/stage`, {
         method: 'PUT',
         headers: {

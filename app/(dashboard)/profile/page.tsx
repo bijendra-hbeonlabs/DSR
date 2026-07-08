@@ -5,6 +5,10 @@ import { useEffect, useState } from 'react';
 import { employeesAPI } from '@/lib/api-client';
 import { User, Phone, Mail, Calendar, Building, Award, Shield, Key, AlertCircle, CheckCircle2 } from 'lucide-react';
 
+const baseUrl = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:5001/api`
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api');
+
 export default function ProfilePage() {
   const { token, user, refreshUser } = useAuth();
 
@@ -142,7 +146,6 @@ export default function ProfilePage() {
     try {
       if (!token || !user) return;
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users/${user.id}`, {
         method: 'PUT',
         headers: {

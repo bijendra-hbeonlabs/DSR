@@ -3,8 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from './types';
 
-// Use env variable, fallback to port 5001 (configured backend port)
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+import { API_BASE_URL as API_BASE } from './api-client';
 
 interface AuthContextType {
   user: User | null;

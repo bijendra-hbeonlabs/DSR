@@ -22,6 +22,9 @@ const ROLES = [
   { id: 3, name: 'MANAGER' },
   { id: 4, name: 'EMPLOYEE' }
 ];
+const baseUrl = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:5001/api`
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api');
 
 const DEPARTMENTS = [
   { id: 1, name: 'Engineering' },
@@ -60,7 +63,6 @@ export default function UsersPage() {
     setIsLoading(true);
     try {
       if (!token) return;
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -91,7 +93,6 @@ export default function UsersPage() {
     }
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users`, {
         method: 'POST',
         headers: {
@@ -153,7 +154,6 @@ export default function UsersPage() {
         bodyPayload.password = password; // Only update if reset was written
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users/${selectedUser.id}`, {
         method: 'PUT',
         headers: {
@@ -184,7 +184,6 @@ export default function UsersPage() {
 
   const toggleUserActive = async (userItem: UserItem) => {
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users/${userItem.id}`, {
         method: 'PUT',
         headers: {
@@ -203,7 +202,6 @@ export default function UsersPage() {
   const handleDeleteUser = async (id: number) => {
     if (!confirm('Are you sure you want to delete this user? This will also delete their Employee Profile.')) return;
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const response = await fetch(`${baseUrl}/users/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }

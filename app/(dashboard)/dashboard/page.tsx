@@ -15,6 +15,10 @@ interface StatCard {
   href?: string;
 }
 
+const baseUrl = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:5001/api`
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api');
+
 export default function DashboardPage() {
   const { user, token } = useAuth();
   const router = useRouter();
@@ -29,8 +33,6 @@ export default function DashboardPage() {
       // Fetch stats
       const data = await dashboardAPI.getStats(token);
       setStats(data);
-
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
       // Fetch active announcements
       const annRes = await fetch(`${baseUrl}/announcements`, {
