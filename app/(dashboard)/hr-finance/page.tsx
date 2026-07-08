@@ -208,12 +208,10 @@ export default function HRFinancePage() {
     setTaxReport({ grossAnnual, totalDeductions: totalDeds, taxableIncome, taxLiability });
   };
 
-  // ── Appraisals ──────────────────────────────────────────────────────────────
-  const [appraisals, setAppraisals] = useState<Appraisal[]>([
-    { id: '1', employeeName: 'Alice Smith',  role: 'Software Engineer', techRating: 4, commRating: 5, leadRating: 3, deliveryRating: 4, overallRating: 4, remarks: 'Excellent delivery on mobile features.', goals: 'Lead backend Node migration' },
-    { id: '2', employeeName: 'Bob Johnson',  role: 'UI Developer',      techRating: 5, commRating: 5, leadRating: 5, deliveryRating: 5, overallRating: 5, remarks: 'Stunning dashboard designs.',            goals: 'Design core component library' },
-  ]);
-  const [appName, setAppName]               = useState('');
+  // ── Appraisals & Candidates DB state ─────────────────────────────────────────
+  const [appraisals, setAppraisals] = useState<any[]>([]);
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [appEmployeeId, setAppEmployeeId] = useState('');
   const [appRole, setAppRole]               = useState('');
   const [techRating, setTechRating]         = useState(4);
   const [commRating, setCommRating]         = useState(4);
@@ -222,32 +220,133 @@ export default function HRFinancePage() {
   const [appRemarks, setAppRemarks]         = useState('');
   const [appGoals, setAppGoals]             = useState('');
 
-  const handleAddAppraisal = () => {
-    if (!appName || !appRole) return;
-    const overall = Math.round((techRating + commRating + leadRating + deliveryRating) / 4);
-    setAppraisals([{ id: Date.now().toString(), employeeName: appName, role: appRole, techRating, commRating, leadRating, deliveryRating, overallRating: overall, remarks: appRemarks, goals: appGoals }, ...appraisals]);
-    setAppName(''); setAppRole(''); setAppRemarks(''); setAppGoals('');
-  };
-
-  // ── ATS Recruitment ─────────────────────────────────────────────────────────
-  const [candidates, setCandidates] = useState<Candidate[]>([
-    { id: 'c1', name: 'Robert Downey', role: 'Senior React Developer', stage: 'Applied',   experience: '5 Years', interviewerScore: 8 },
-    { id: 'c2', name: 'Diana Prince',  role: 'Node JS Architect',      stage: 'Screened',  experience: '8 Years', interviewerScore: 9 },
-    { id: 'c3', name: 'Ethan Hunt',    role: 'QA Lead Engineer',       stage: 'Technical', experience: '6 Years', interviewerScore: 7 },
-    { id: 'c4', name: 'Sanjay Kumar',  role: 'Full Stack Developer',   stage: 'HR',        experience: '4 Years', interviewerScore: 8.5 },
-  ]);
   const [candName, setCandName]   = useState('');
   const [candRole, setCandRole]   = useState('');
   const [candExp, setCandExp]     = useState('');
   const [candScore, setCandScore] = useState(8);
 
-  const addCandidate = () => {
-    if (!candName || !candRole) return;
-    setCandidates([...candidates, { id: Date.now().toString(), name: candName, role: candRole, stage: 'Applied', experience: candExp || 'N/A', interviewerScore: candScore }]);
-    setCandName(''); setCandRole(''); setCandExp(''); setCandScore(8);
+  const fetchAppraisals = async () => {
+    if (!token) return;
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const res = await fetch(`${baseUrl}/appraisals`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAppraisals(data);
+      }
+    } catch (e) {
+      console.error('appraisals fetch', e);
+    }
   };
-  const moveStage = (id: string, stage: Candidate['stage']) =>
-    setCandidates(candidates.map(c => c.id === id ? { ...c, stage } : c));
+
+  const fetchCandidates = async () => {
+    if (!token) return;
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const res = await fetch(`${baseUrl}/candidates`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCandidates(data);
+      }
+    } catch (e) {
+      console.error('candidates fetch', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchAppraisals();
+    fetchCandidates();
+  }, [token]);
+
+  const handleAddAppraisal = async () => {
+    if (!appEmployeeId) return;
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const res = await fetch(`${baseUrl}/appraisals`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          employeeId: Number(appEmployeeId),
+          techRating,
+          commRating,
+          leadRating,
+          deliveryRating,
+          remarks: appRemarks,
+          goals: appGoals
+        })
+      });
+
+      if (res.ok) {
+        setAppEmployeeId('');
+        setAppRole('');
+        setAppRemarks('');
+        setAppGoals('');
+        fetchAppraisals();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to submit appraisal');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const addCandidate = async () => {
+    if (!candName || !candRole) return;
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const res = await fetch(`${baseUrl}/candidates`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: candName,
+          role: candRole,
+          experience: candExp || 'N/A',
+          interviewerScore: candScore
+        })
+      });
+
+      if (res.ok) {
+        setCandName('');
+        setCandRole('');
+        setCandExp('');
+        setCandScore(8);
+        fetchCandidates();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const moveStage = async (id: number | string, stage: string) => {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const res = await fetch(`${baseUrl}/candidates/${id}/stage`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ stage })
+      });
+
+      if (res.ok) {
+        fetchCandidates();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   if (!user) return null;
 
@@ -752,10 +851,21 @@ export default function HRFinancePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>Select Employee</label>
-                <select value={appName} onChange={e => setAppName(e.target.value)} className={inputCls}>
+                <select
+                  value={appEmployeeId}
+                  onChange={e => {
+                    const id = e.target.value;
+                    setAppEmployeeId(id);
+                    const emp = employees.find(x => String(x.id) === String(id));
+                    if (emp) {
+                      setAppRole(emp.designation?.name || 'Staff Member');
+                    }
+                  }}
+                  className={inputCls}
+                >
                   <option value="">Select employee…</option>
                   {employees.map(emp => (
-                    <option key={emp.id} value={`${emp.firstName} ${emp.lastName}`}>
+                    <option key={emp.id} value={emp.id}>
                       {emp.firstName} {emp.lastName}
                     </option>
                   ))}
@@ -819,26 +929,30 @@ export default function HRFinancePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {appraisals.map(a => (
-                    <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
-                      <td className="px-5 py-3 font-bold text-sm">{a.employeeName}</td>
-                      <td className="px-5 py-3 text-xs text-slate-500">{a.role}</td>
-                      {[a.techRating, a.commRating, a.leadRating, a.deliveryRating].map((r, i) => (
-                        <td key={i} className="px-5 py-3 text-xs font-bold">{r}/5</td>
-                      ))}
-                      <td className="px-5 py-3">
-                        <div className="flex gap-0.5">
-                          {[1,2,3,4,5].map(s => (
-                            <Star key={s} size={12} className={s <= a.overallRating ? 'text-amber-400 fill-amber-400' : 'text-slate-300'} />
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-xs text-slate-500 max-w-[180px]">
-                        <p className="truncate">{a.remarks}</p>
-                        <p className="text-blue-500 font-bold text-[10px] mt-0.5">→ {a.goals}</p>
-                      </td>
-                    </tr>
-                  ))}
+                  {appraisals.map(a => {
+                    const empName = a.employee ? `${a.employee.firstName} ${a.employee.lastName}` : a.employeeName || 'Staff Member';
+                    const roleLabel = a.employee?.designation?.name || a.role || 'Employee';
+                    return (
+                      <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                        <td className="px-5 py-3 font-bold text-sm">{empName}</td>
+                        <td className="px-5 py-3 text-xs text-slate-500">{roleLabel}</td>
+                        {[a.techRating, a.commRating, a.leadRating, a.deliveryRating].map((r, i) => (
+                          <td key={i} className="px-5 py-3 text-xs font-bold">{r}/5</td>
+                        ))}
+                        <td className="px-5 py-3">
+                          <div className="flex gap-0.5">
+                            {[1,2,3,4,5].map(s => (
+                              <Star key={s} size={12} className={s <= a.overallRating ? 'text-amber-400 fill-amber-400' : 'text-slate-300'} />
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-xs text-slate-500 max-w-[180px]">
+                          <p className="truncate">{a.remarks}</p>
+                          <p className="text-blue-500 font-bold text-[10px] mt-0.5">→ {a.goals}</p>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

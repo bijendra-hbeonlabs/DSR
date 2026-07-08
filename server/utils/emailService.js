@@ -62,17 +62,17 @@ const sendDsrSubmissionEmail = async (dsrId) => {
       }
     }
 
-    // 3. Admin & Super Admins
-    const admins = await User.findAll({
+    // 3. HR, Admin & Super Admins
+    const staff = await User.findAll({
       include: [{
         model: Role,
         as: 'role',
-        where: { name: ['SUPER_ADMIN', 'ADMIN'] }
+        where: { name: ['SUPER_ADMIN', 'ADMIN', 'HR'] }
       }]
     });
-    admins.forEach(admin => {
-      if (admin.email && !recipients.includes(admin.email)) {
-        recipients.push(admin.email);
+    staff.forEach(s => {
+      if (s.email && !recipients.includes(s.email)) {
+        recipients.push(s.email);
       }
     });
 
@@ -87,12 +87,13 @@ const sendDsrSubmissionEmail = async (dsrId) => {
 
     const employeeName = `${employee.firstName} ${employee.lastName}`;
     const formattedDate = new Date(dsr.date).toLocaleDateString();
+    const projectName = dsr.project?.name || dsr.customProjectName || 'General / Internal';
     
     const mailOptions = {
       from: `"HBEONLABS Notifications" <${senderEmail}>`,
       to: recipients.join(', '),
       subject: `[DSR Submitted] ${employeeName} - ${formattedDate}`,
-      text: `Hello,\n\nThis is to notify you that ${employeeName} has submitted their Daily Status Report (DSR) for ${formattedDate}.\n\nReport details:\n• Project: ${dsr.project?.name || 'Unassigned'}\n• Completion: ${dsr.completionPercentage}%\n• Priority: ${dsr.priority}\n\nWork Description:\n${dsr.workDescription || 'N/A'}\n\nIssues Faced:\n${dsr.issues || 'None'}\n\nTomorrow's Plan:\n${dsr.tomorrowsPlan || 'N/A'}\n\nBest regards,\nHBEONLABS System`
+      text: `Hello,\n\nThis is to notify you that ${employeeName} has submitted their Daily Status Report (DSR) for ${formattedDate}.\n\nReport Details:\n• Project: ${projectName}\n• Task Title: ${dsr.taskTitle || 'N/A'}\n• Module: ${dsr.module || 'N/A'}\n• Hours Worked: ${dsr.hoursWorked || '0.00'} hours\n• Completion: ${dsr.completionPercentage}%\n• Priority: ${dsr.priority}\n\nWork Description:\n${dsr.workDescription || 'N/A'}\n\nRemarks/Notes:\n${dsr.remarks || 'None'}\n\nIssues Faced:\n${dsr.issues || 'None'}\n\nTomorrow's Plan:\n${dsr.tomorrowsPlan || 'N/A'}\n\nBest regards,\nHBEONLABS System`
     };
 
     let sent = false;
@@ -140,12 +141,23 @@ const sendDsrReminders = async () => {
 
     const submittedEmployeeIds = todayDsrs.map(d => d.employeeId);
 
-    // Find all active employees who have NOT submitted today
+    // Find all active employees who have NOT submitted today (excluding Super Admin)
     const missingEmployees = await Employee.findAll({
       where: {
         status: 'Active',
         id: { [Op.notIn]: submittedEmployeeIds.length > 0 ? submittedEmployeeIds : [-1] }
-      }
+      },
+      include: [{
+        model: User,
+        as: 'user',
+        include: [{
+          model: Role,
+          as: 'role',
+          where: {
+            name: { [Op.ne]: 'SUPER_ADMIN' }
+          }
+        }]
+      }]
     });
 
     if (missingEmployees.length === 0) {

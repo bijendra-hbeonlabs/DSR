@@ -26,6 +26,14 @@ const Department = sequelize.define(
         key: 'id',
       },
     },
+    parentId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'departments',
+        key: 'id',
+      },
+    },
   },
   {
     timestamps: true,

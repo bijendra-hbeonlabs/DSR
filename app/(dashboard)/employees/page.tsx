@@ -7,23 +7,37 @@ import { Employee, Project, Task, Attendance, DSR, Leave } from '@/lib/types';
 import { Search, UserPlus, Mail, Phone, Calendar, BadgeAlert, Award, Briefcase, X, User, Eye, CheckCircle2, FileText, Power } from 'lucide-react';
 
 const DEPARTMENTS = [
-  { id: 1, name: 'Engineering' },
+  { id: 1, name: 'Research & Development' },
   { id: 2, name: 'Design' },
   { id: 3, name: 'Sales' },
   { id: 4, name: 'HR' },
-  { id: 5, name: 'Finance' }
+  { id: 5, name: 'Finance' },
+  { id: 6, name: 'Owner' },
+  { id: 7, name: 'Sales & Marketing' },
+  { id: 8, name: 'Embedded Systems' },
+  { id: 9, name: 'Software Development' },
+  { id: 10, name: 'Hardware Design' },
+  { id: 11, name: 'Quality Assurance' }
 ];
 
 const DESIGNATIONS = [
-  { id: 1, name: 'Senior Developer', departmentId: 1 },
-  { id: 2, name: 'Junior Developer', departmentId: 1 },
-  { id: 3, name: 'Tech Lead', departmentId: 1 },
+  { id: 1, name: 'Senior Developer', departmentId: 9 },
+  { id: 2, name: 'Junior Developer', departmentId: 9 },
+  { id: 3, name: 'Tech Lead', departmentId: 9 },
   { id: 4, name: 'Senior Designer', departmentId: 2 },
   { id: 5, name: 'UI Designer', departmentId: 2 },
   { id: 6, name: 'Sales Executive', departmentId: 3 },
   { id: 7, name: 'Sales Manager', departmentId: 3 },
   { id: 8, name: 'HR Manager', departmentId: 4 },
-  { id: 9, name: 'Finance Manager', departmentId: 5 }
+  { id: 9, name: 'Finance Manager', departmentId: 5 },
+  { id: 10, name: 'Super Admin', departmentId: 6 },
+  { id: 11, name: 'R & D Head', departmentId: 1 },
+  { id: 12, name: 'Embedded Firmware Developer', departmentId: 8 },
+  { id: 13, name: 'Hardware Design Engineer', departmentId: 10 },
+  { id: 14, name: 'QA Automation Engineer', departmentId: 11 },
+  { id: 15, name: 'Junior QA Tester', departmentId: 11 },
+  { id: 16, name: 'Embedded Software Engineer', departmentId: 8 },
+  { id: 17, name: 'Lead Hardware Architect', departmentId: 10 }
 ];
 
 const ROLES = [
@@ -365,7 +379,7 @@ export default function EmployeesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right space-x-1.5">
-                      {(user?.roleName === 'SUPER_ADMIN' || user?.roleName === 'ADMIN' || user?.roleName === 'MANAGER') && (
+                      {(user?.roleName === 'SUPER_ADMIN' || user?.roleName === 'ADMIN' || user?.roleName === 'MANAGER' || emp.userId === user?.id) && (
                         <button
                           onClick={() => handleOpenWorkProfile(emp)}
                           className="p-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 rounded-lg transition inline-flex items-center gap-1 cursor-pointer"
@@ -440,7 +454,7 @@ export default function EmployeesPage() {
                       required
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="e.g. johndoe"
+                      placeholder="e.g. employeeemployee"
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-black focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -451,7 +465,7 @@ export default function EmployeesPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="e.g. john@hbeonlabs.com"
+                      placeholder="employee@hbeonlabs.com"
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-black focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -480,7 +494,7 @@ export default function EmployeesPage() {
                       required
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="e.g. John"
+                      placeholder="e.g. employee"
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-black focus:outline-none focus:border-blue-500"
                     />
                   </div>
@@ -491,7 +505,7 @@ export default function EmployeesPage() {
                       required
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
-                      placeholder="e.g. Doe"
+                      placeholder="e.g. employee"
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-black focus:outline-none focus:border-blue-500"
                     />
                   </div>

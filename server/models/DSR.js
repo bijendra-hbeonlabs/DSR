@@ -62,6 +62,27 @@ const DSR = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    customProjectName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    taskTitle: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    module: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    hoursWorked: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      defaultValue: 0,
+    },
+    remarks: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
     status: {
       type: DataTypes.STRING,
       defaultValue: 'Draft',

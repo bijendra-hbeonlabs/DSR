@@ -1,5 +1,5 @@
 const express = require('express');
-const { Task, Project, User } = require('../models');
+const { Task, Project, User, Employee } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
@@ -18,7 +18,30 @@ router.get('/', async (req, res) => {
 
     if (projectId) where.projectId = projectId;
     if (status) where.status = status;
-    if (assignedTo) where.assignedTo = assignedTo;
+    
+    const roleName = req.user.role?.name;
+    if (roleName === 'EMPLOYEE') {
+      where.assignedTo = req.user.id;
+    } else if (roleName === 'MANAGER') {
+      const teamEmployees = await Employee.findAll({
+        where: { managerId: req.user.id },
+        attributes: ['userId']
+      });
+      const teamUserIds = teamEmployees.map(e => e.userId);
+      teamUserIds.push(req.user.id);
+
+      if (assignedTo) {
+        if (teamUserIds.includes(parseInt(assignedTo))) {
+          where.assignedTo = assignedTo;
+        } else {
+          return res.status(403).json({ error: 'Access denied: Employee is not on your team' });
+        }
+      } else {
+        where.assignedTo = { [Op.in]: teamUserIds };
+      }
+    } else if (assignedTo) {
+      where.assignedTo = assignedTo;
+    }
     if (priority) where.priority = priority;
 
     const { count, rows } = await Task.findAndCountAll({

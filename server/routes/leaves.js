@@ -20,6 +20,28 @@ router.get('/', async (req, res) => {
         return res.status(404).json({ error: 'Employee profile not found' });
       }
       where.employeeId = employee.id;
+    } else if (req.user.role.name === 'MANAGER') {
+      const teamEmployees = await Employee.findAll({
+        where: { managerId: req.user.id },
+        attributes: ['id']
+      });
+      const teamEmployeeIds = teamEmployees.map(e => e.id);
+      
+      // Let the manager see their own records too
+      const managerEmployee = await Employee.findOne({ where: { userId: req.user.id } });
+      if (managerEmployee) {
+        teamEmployeeIds.push(managerEmployee.id);
+      }
+
+      if (employeeId) {
+        if (teamEmployeeIds.includes(parseInt(employeeId))) {
+          where.employeeId = employeeId;
+        } else {
+          return res.status(403).json({ error: 'Access denied: Employee is not on your team' });
+        }
+      } else {
+        where.employeeId = { [Op.in]: teamEmployeeIds };
+      }
     } else if (employeeId) {
       where.employeeId = employeeId;
     }

@@ -97,6 +97,25 @@ const register = async (req, res) => {
       active: true,
     });
 
+    try {
+      const nameParts = username.trim().split(/[\s._-]+/);
+      const firstName = nameParts[0] ? (nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1)) : 'Employee';
+      const lastName = nameParts[1] ? (nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1)) : 'User';
+
+      await Employee.create({
+        userId: user.id,
+        firstName,
+        lastName,
+        email,
+        departmentId: departmentId || null,
+        status: 'Active',
+        joinDate: new Date(),
+      });
+    } catch (empError) {
+      await user.destroy();
+      throw empError;
+    }
+
     // Generate token
     const token = generateToken({
       id: user.id,

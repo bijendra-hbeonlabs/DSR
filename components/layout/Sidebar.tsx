@@ -27,6 +27,8 @@ const navigationConfig = {
   SUPER_ADMIN: [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Users', href: '/users', icon: Users },
+    { label: 'Employees', href: '/employees', icon: Users },
+    { label: 'Daily DSR', href: '/dsr', icon: FileText },
     { label: 'Departments', href: '/departments', icon: Building },
     { label: 'Human Capital', href: '/hr-finance', icon: FileText },
     { label: 'Leaves', href: '/leaves', icon: Calendar },
@@ -54,6 +56,7 @@ const navigationConfig = {
   ],
   EMPLOYEE: [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { label: 'Employees', href: '/employees', icon: Users },
     { label: 'My Attendance', href: '/attendance', icon: Clock },
     { label: 'My DSR', href: '/dsr', icon: FileText },
     { label: 'My Tasks', href: '/tasks', icon: CheckSquare },

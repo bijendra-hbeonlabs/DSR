@@ -20,22 +20,33 @@ const seedDatabase = async () => {
     ]);
     console.log('[SEED] Created roles');
 
-    // Create Departments
-    const departments = await Department.bulkCreate([
-      { name: 'Engineering', description: 'Software Development Team' },
+    // Create Parent Departments
+    const parentDepts = await Department.bulkCreate([
+      { name: 'Research & Development', description: 'R&D Department' },
       { name: 'Design', description: 'UI/UX Design Team' },
       { name: 'Sales', description: 'Sales & Business Development' },
       { name: 'HR', description: 'Human Resources' },
       { name: 'Finance', description: 'Finance & Accounting' },
       { name: 'Owner', description: 'Owner & Management' },
+      { name: 'Sales & Marketing', description: 'Sales & Corporate Marketing' },
     ]);
-    console.log('[SEED] Created departments');
+
+    // Create Sub Departments
+    const subDepts = await Department.bulkCreate([
+      { name: 'Embedded Systems', description: 'Embedded Systems Engineering', parentId: parentDepts[0].id },
+      { name: 'Software Development', description: 'Software Engineering Department', parentId: parentDepts[0].id },
+      { name: 'Hardware Design', description: 'Electronics & Hardware Design', parentId: parentDepts[0].id },
+      { name: 'Quality Assurance', description: 'QA & Software Testing', parentId: parentDepts[0].id },
+    ]);
+
+    const departments = [...parentDepts, ...subDepts];
+    console.log('[SEED] Created departments and sub-departments under R&D');
 
     // Create Designations
     const designations = await Designation.bulkCreate([
-      { name: 'Senior Developer', departmentId: departments[0].id },
-      { name: 'Junior Developer', departmentId: departments[0].id },
-      { name: 'Tech Lead', departmentId: departments[0].id },
+      { name: 'Senior Developer', departmentId: departments[8].id },
+      { name: 'Junior Developer', departmentId: departments[8].id },
+      { name: 'Tech Lead', departmentId: departments[8].id },
       { name: 'Senior Designer', departmentId: departments[1].id },
       { name: 'UI Designer', departmentId: departments[1].id },
       { name: 'Sales Executive', departmentId: departments[2].id },
@@ -43,6 +54,13 @@ const seedDatabase = async () => {
       { name: 'HR Manager', departmentId: departments[3].id },
       { name: 'Finance Manager', departmentId: departments[4].id },
       { name: 'Super Admin', departmentId: departments[5].id },
+      { name: 'R & D Head', departmentId: departments[0].id },
+      { name: 'Embedded Firmware Developer', departmentId: departments[7].id },
+      { name: 'Hardware Design Engineer', departmentId: departments[9].id },
+      { name: 'QA Automation Engineer', departmentId: departments[10].id },
+      { name: 'Junior QA Tester', departmentId: departments[10].id },
+      { name: 'Embedded Software Engineer', departmentId: departments[7].id },
+      { name: 'Lead Hardware Architect', departmentId: departments[9].id },
     ]);
     console.log('[SEED] Created designations');
 
@@ -77,7 +95,7 @@ const seedDatabase = async () => {
         email: 'employee@hbeonlabs.com',
         password: await hashPassword('Hbeonlabs@2026'),
         roleId: roles[3].id,
-        departmentId: departments[0].id,
+        departmentId: departments[8].id,
         active: true,
       },
     ]);
@@ -129,7 +147,7 @@ const seedDatabase = async () => {
         lastName: 'Developer',
         email: 'jane.dev@hbeonlabs.com',
         phone: '+1-555-0002',
-        departmentId: departments[0].id,
+        departmentId: departments[8].id,
         designationId: designations[0].id,
         managerId: users[2].id,
         status: 'Active',

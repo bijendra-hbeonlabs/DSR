@@ -7,11 +7,23 @@ import { Employee, Project, Task, Attendance, DSR, Leave } from '@/lib/types';
 import { Briefcase, Users, Building, ShieldAlert, Award, X, CheckCircle2, FileText, Calendar, Power } from 'lucide-react';
 
 const DEPARTMENTS_DATA = [
-  { id: 1, name: 'Engineering', description: 'Software development, QA, systems architecture, and engineering infrastructure.' },
+  {
+    id: 1,
+    name: 'Research & Development (R & D)',
+    description: 'Embedded systems, electronics hardware design, software development, and quality assurance validation.',
+    subDepartments: [
+      { name: 'Embedded Systems', description: 'Embedded Systems Engineering' },
+      { name: 'Software Development', description: 'Software Engineering Department' },
+      { name: 'Hardware Design', description: 'Electronics & Hardware Design' },
+      { name: 'Quality Assurance', description: 'QA & Software Testing' }
+    ]
+  },
   { id: 2, name: 'Design', description: 'User experience, product design, brand visuals, and graphic artwork.' },
   { id: 3, name: 'Sales', description: 'Client acquisition, partnership management, sales conversion, and account management.' },
   { id: 4, name: 'HR', description: 'Talent recruitment, employee relations, workspace culture, and payroll compliance.' },
-  { id: 5, name: 'Finance', description: 'Accounting audit, budget forecast, capital allocation, and financial planning.' }
+  { id: 5, name: 'Finance', description: 'Accounting audit, budget forecast, capital allocation, and financial planning.' },
+  { id: 6, name: 'Owner', description: 'Executive leadership, corporate ownership, and strategic decision planning.' },
+  { id: 7, name: 'Sales & Marketing', description: 'Brand expansion, corporate communications, and product sales campaigns.' }
 ];
 
 export default function DepartmentsPage() {
@@ -171,6 +183,21 @@ export default function DepartmentsPage() {
                   <p className="text-sm text-slate-500 leading-relaxed font-medium">
                     {dept.description}
                   </p>
+                  {(dept as any).subDepartments && (
+                    <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3 w-full">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sub-departments</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(dept as any).subDepartments.map((sub: any, idx: number) => (
+                          <span
+                            key={idx}
+                            className="inline-block text-[11px] font-semibold bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200"
+                          >
+                            {sub.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Team roster summary */}

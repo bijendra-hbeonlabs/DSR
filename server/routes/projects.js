@@ -1,6 +1,7 @@
 const express = require('express');
-const { Project, ProjectMember, User, Task, Department } = require('../models');
+const { Project, ProjectMember, User, Task, Department, Employee } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -16,6 +17,37 @@ router.get('/', async (req, res) => {
     const offset = (parsedPage - 1) * parsedLimit;
 
     if (status) where.status = status;
+
+    // Filter projects for employees: only show assigned projects
+    const roleName = req.user.role?.name;
+    if (roleName === 'EMPLOYEE') {
+      const userMemberships = await ProjectMember.findAll({
+        where: { userId: req.user.id },
+        attributes: ['projectId'],
+      });
+      const projectIds = userMemberships.map(m => m.projectId);
+      where.id = { [Op.in]: projectIds.length > 0 ? projectIds : [-1] };
+    } else if (roleName === 'MANAGER') {
+      // Find team members
+      const teamEmployees = await Employee.findAll({
+        where: { managerId: req.user.id },
+        attributes: ['userId']
+      });
+      const teamUserIds = teamEmployees.map(e => e.userId);
+      teamUserIds.push(req.user.id);
+
+      // Projects where team members are assigned
+      const teamMemberships = await ProjectMember.findAll({
+        where: { userId: { [Op.in]: teamUserIds } },
+        attributes: ['projectId'],
+      });
+      const projectIds = teamMemberships.map(m => m.projectId);
+
+      where[Op.or] = [
+        { teamLeadId: req.user.id },
+        { id: { [Op.in]: projectIds } }
+      ];
+    }
 
     const { count, rows } = await Project.findAndCountAll({
       where,

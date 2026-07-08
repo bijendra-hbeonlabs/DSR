@@ -97,11 +97,17 @@ router.put('/:id', async (req, res) => {
 
     await employee.update(req.body);
 
-    // If status is updated, sync user active status
-    if (req.body.status !== undefined) {
-      const user = await User.findByPk(employee.userId);
-      if (user) {
-        await user.update({ active: req.body.status === 'Active' || req.body.status === 'OnLeave' });
+    // Sync to User account
+    const user = await User.findByPk(employee.userId);
+    if (user) {
+      const userUpdates = {};
+      if (req.body.email) userUpdates.email = req.body.email;
+      if (req.body.departmentId !== undefined) userUpdates.departmentId = req.body.departmentId || null;
+      if (req.body.status !== undefined) {
+        userUpdates.active = req.body.status === 'Active' || req.body.status === 'OnLeave';
+      }
+      if (Object.keys(userUpdates).length > 0) {
+        await user.update(userUpdates);
       }
     }
 
@@ -120,8 +126,16 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
+    const userId = employee.userId;
     await employee.destroy();
-    res.json({ message: 'Employee deleted successfully' });
+
+    // Delete corresponding user record
+    const user = await User.findByPk(userId);
+    if (user) {
+      await user.destroy();
+    }
+
+    res.json({ message: 'Employee and corresponding user deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete employee', details: error.message });
   }

@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
@@ -29,14 +30,24 @@ export default function DashboardPage() {
       const data = await dashboardAPI.getStats(token);
       setStats(data);
 
-      // Fetch active announcements
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+
+      // Fetch active announcements
       const annRes = await fetch(`${baseUrl}/announcements`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (annRes.ok) {
         const annData = await annRes.json();
         setAnnouncements(annData.slice(0, 5)); // display latest 5
+      }
+
+      // Fetch in-app notifications
+      const notifRes = await fetch(`${baseUrl}/notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (notifRes.ok) {
+        const notifData = await notifRes.json();
+        setNotifications(notifData.slice(0, 5)); // display latest 5
       }
     } catch (error) {
       console.warn('Failed to fetch dashboard data:', error);
@@ -343,12 +354,29 @@ export default function DashboardPage() {
           {/* Recent Activity */}
           <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-foreground mb-4">Recent Activity</h2>
-            <div className="flex flex-col items-center justify-center py-10 border border-dashed border-slate-200 rounded-lg bg-slate-50/50">
-              <p className="text-sm font-medium text-slate-700">No recent activities</p>
-              <p className="text-xs text-slate-500 mt-1 max-w-md text-center px-4">
-                Activities will appear here dynamically as employees log attendance, update tasks, or submit daily status reports.
-              </p>
-            </div>
+            {notifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 border border-dashed border-slate-200 rounded-lg bg-slate-50/50">
+                <p className="text-sm font-medium text-slate-700">No recent activities</p>
+                <p className="text-xs text-slate-500 mt-1 max-w-md text-center px-4">
+                  Activities will appear here dynamically as employees log attendance, update tasks, or submit daily status reports.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {notifications.map((notif) => (
+                  <div key={notif.id} className="p-4 bg-slate-50 border border-slate-200 rounded-lg dark:bg-slate-900/50 dark:border-slate-800 transition">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                      <h3 className="text-sm font-bold text-slate-850 dark:text-slate-200">{notif.title}</h3>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">{notif.message}</p>
+                    <p className="text-[10px] text-slate-400 mt-2 font-semibold">
+                      {new Date(notif.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

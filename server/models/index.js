@@ -12,6 +12,8 @@ const DSR = require('./DSR');
 const Leave = require('./Leave');
 const Announcement = require('./Announcement');
 const Notification = require('./Notification');
+const Appraisal = require('./Appraisal');
+const Candidate = require('./Candidate');
 
 // Define associations
 // User associations
@@ -23,6 +25,8 @@ User.hasOne(Employee, { foreignKey: 'userId', as: 'employee' });
 Department.belongsTo(User, { foreignKey: 'headId', as: 'head' });
 Department.hasMany(Employee, { foreignKey: 'departmentId', as: 'employees' });
 Department.hasMany(Designation, { foreignKey: 'departmentId', as: 'designations' });
+Department.belongsTo(Department, { foreignKey: 'parentId', as: 'parent' });
+Department.hasMany(Department, { foreignKey: 'parentId', as: 'subDepartments' });
 
 // Designation associations
 Designation.belongsTo(Department, { foreignKey: 'departmentId', as: 'department' });
@@ -37,6 +41,7 @@ Employee.hasMany(Attendance, { foreignKey: 'employeeId', as: 'attendances' });
 Employee.hasMany(Task, { foreignKey: 'assignedTo', as: 'assignedTasks' });
 Employee.hasMany(DSR, { foreignKey: 'employeeId', as: 'dsrs' });
 Employee.hasMany(Leave, { foreignKey: 'employeeId', as: 'leaves' });
+Employee.hasMany(Appraisal, { foreignKey: 'employeeId', as: 'appraisals' });
 
 // Attendance associations
 Attendance.belongsTo(Employee, { foreignKey: 'employeeId', as: 'employee' });
@@ -73,6 +78,9 @@ Announcement.belongsTo(Department, { foreignKey: 'departmentId', as: 'department
 // Notification associations
 Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
+// Appraisal associations
+Appraisal.belongsTo(Employee, { foreignKey: 'employeeId', as: 'employee' });
+
 module.exports = {
   sequelize,
   Role,
@@ -88,4 +96,6 @@ module.exports = {
   Leave,
   Announcement,
   Notification,
+  Appraisal,
+  Candidate,
 };

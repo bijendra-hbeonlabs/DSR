@@ -172,6 +172,11 @@ export interface DSR {
   reviewComments?: string;
   submittedAt?: string;
   approvedAt?: string;
+  taskTitle?: string;
+  module?: string;
+  hoursWorked?: number;
+  remarks?: string;
+  customProjectName?: string;
   createdAt: string;
   updatedAt: string;
 }

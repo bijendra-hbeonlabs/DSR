@@ -91,6 +91,25 @@ router.post('/', roleCheck(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
       active: active !== undefined ? active : true
     });
 
+    try {
+      const nameParts = username.trim().split(/[\s._-]+/);
+      const firstName = nameParts[0] ? (nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1)) : 'Employee';
+      const lastName = nameParts[1] ? (nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1)) : 'User';
+
+      await Employee.create({
+        userId: newUser.id,
+        firstName,
+        lastName,
+        email,
+        departmentId: departmentId || null,
+        status: (active !== undefined ? active : true) ? 'Active' : 'Inactive',
+        joinDate: new Date(),
+      });
+    } catch (empError) {
+      await newUser.destroy();
+      throw empError;
+    }
+
     res.status(201).json({
       message: 'User created successfully',
       user: {
@@ -158,11 +177,16 @@ router.put('/:id', async (req, res) => {
 
     await user.update(updates);
 
-    // If active is updated, sync employee status
-    if (active !== undefined) {
-      const employee = await Employee.findOne({ where: { userId: id } });
-      if (employee) {
-        await employee.update({ status: active ? 'Active' : 'Inactive' });
+    // Sync to employee profile
+    const employee = await Employee.findOne({ where: { userId: id } });
+    if (employee) {
+      const employeeUpdates = {};
+      if (email) employeeUpdates.email = email;
+      if (departmentId !== undefined) employeeUpdates.departmentId = departmentId || null;
+      if (active !== undefined) employeeUpdates.status = active ? 'Active' : 'Inactive';
+      
+      if (Object.keys(employeeUpdates).length > 0) {
+        await employee.update(employeeUpdates);
       }
     }
 
